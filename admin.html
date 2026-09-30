@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบปรับแต่งตำแหน่งและข้อความ (Admin) - โรงพยาบาลไทรโยค</title>
+  
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <!-- CSS Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-body">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">⚙️</div>
+        <div class="brand-text">
+          <h1>จัดการตำแหน่งและข้อความ (Admin Visual Editor)</h1>
+          <p>ลากวาง ปรับพิกัด X/Y และเพิ่มตัวอักษรบนรูปภาพแม่แบบ 1024 x 1536 px</p>
+        </div>
+      </div>
+
+      <div class="admin-header-actions">
+        <a href="index.html" class="btn btn-light" title="กลับไปหน้าดูรายงานและบันทึกข้อมูล">
+          ⬅️ กลับหน้าหลัก
+        </a>
+        <button id="btnSaveConfig" class="btn btn-success" title="บันทึกการจัดวางและข้อความทั้งหมดลงเครื่อง">
+          💾 บันทึกตำแหน่ง
+        </button>
+        <button id="btnResetConfig" class="btn btn-danger" title="คืนค่าพิกัดทั้งหมดกลับเป็นค่ามาตรฐานเริ่มต้น">
+          🔄 คืนค่าเริ่มต้น
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Admin Main Workspace -->
+  <main class="admin-container">
+    <!-- Left: Canvas Visual Stage -->
+    <section class="admin-stage-card">
+      <div class="admin-stage-toolbar">
+        <div class="stage-tools-left">
+          <label for="zoomSelect">🔍 การย่อ/ขยาย:</label>
+          <select id="zoomSelect" class="zoom-select">
+            <option value="fit" selected>พอดีจอภาพ (Fit)</option>
+            <option value="0.5">50%</option>
+            <option value="0.65">65%</option>
+            <option value="0.75">75%</option>
+            <option value="1.0">100% (ขนาดจริง)</option>
+          </select>
+
+          <label style="display:flex; align-items:center; gap:0.35rem; cursor:pointer; font-size:0.85rem; margin-left:0.5rem;">
+            <input type="checkbox" id="chkShowBounds" checked> แสดงกรอบพิกัด
+          </label>
+
+          <label style="display:flex; align-items:center; gap:0.35rem; cursor:pointer; font-size:0.85rem; margin-left:0.5rem;">
+            <input type="checkbox" id="chkShowGrid"> แสดงเส้นไกด์ (Grid)
+          </label>
+        </div>
+
+        <div class="stage-tools-right">
+          <span id="canvasHoverInfo" style="font-size:0.8rem; color:#64748b; font-family:monospace;">
+            พิกัด: X=0, Y=0
+          </span>
+          <button id="btnQuickAddCustom" class="btn btn-warning" style="padding:0.3rem 0.75rem; font-size:0.85rem;">
+            ➕ เพิ่มข้อความใหม่
+          </button>
+        </div>
+      </div>
+
+      <!-- Viewport with scroll -->
+      <div class="admin-stage-viewport" id="viewport">
+        <div class="canvas-pan-container" id="canvasContainer">
+          <canvas id="adminCanvas" width="1024" height="1536"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Controls & Inspector Sidebar -->
+    <aside class="admin-sidebar">
+      <!-- Tabs -->
+      <nav class="admin-tab-nav">
+        <button class="admin-tab-btn active" data-tab="tab-inspector">✏️ ปรับแต่งพิกัด</button>
+        <button class="admin-tab-btn" data-tab="tab-list">📋 รายการทั้งหมด</button>
+        <button class="admin-tab-btn" data-tab="tab-add">➕ เพิ่มข้อความ</button>
+        <button class="admin-tab-btn" data-tab="tab-backup">📁 สำรองข้อมูล</button>
+      </nav>
+
+      <!-- Tab 1: Inspector -->
+      <div id="tab-inspector" class="admin-tab-content active">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div class="admin-card-title">
+              <span id="inspectorTitle">เลือกจุดข้อความบนรูปภาพ</span>
+            </div>
+            <span id="inspectorCategory" class="selected-badge">ไม่ได้เลือก</span>
+          </div>
+
+          <div id="inspectorEmptyState" style="text-align:center; padding:2rem 1rem; color:var(--text-muted); font-size:0.9rem;">
+            👈 คลิกเลือกข้อความหรือองค์ประกอบบนภาพทางซ้าย เพื่อดูและปรับแต่งตำแหน่ง พิกัด ขนาดตัวอักษร และสี
+          </div>
+
+          <div id="inspectorControls" style="display:none;">
+            <!-- Custom Text Content (if custom) -->
+            <div class="inspector-row" id="customTextContentRow" style="display:none;">
+              <label for="inputCustomText">เนื้อหาข้อความ:</label>
+              <textarea id="inputCustomText" class="input-control" rows="2" placeholder="พิมพ์ข้อความที่ต้องการ..."></textarea>
+            </div>
+
+            <!-- Sample text preview (if standard) -->
+            <div class="inspector-row" id="standardSampleRow">
+              <label for="inputSampleText">ตัวอย่างข้อความพรีวิว:</label>
+              <input type="text" id="inputSampleText" class="input-control" placeholder="ข้อความตัวอย่างสำหรับทดสอบ">
+            </div>
+
+            <!-- X / Y Coordinates with Step Controls -->
+            <div class="inspector-row">
+              <label>พิกัดแกน X และ Y (พิกเซลจาก 1024 x 1536):</label>
+              <div class="coord-group">
+                <!-- X -->
+                <div class="coord-box">
+                  <div class="coord-header">
+                    <span>ตำแหน่ง X (แนวนอน)</span>
+                    <span id="xPercent" style="font-size:0.7rem; color:#94a3b8;">0%</span>
+                  </div>
+                  <div class="coord-input-row">
+                    <button class="btn-step" data-coord="x" data-delta="-10">-10</button>
+                    <button class="btn-step" data-coord="x" data-delta="-1">-1</button>
+                    <input type="number" id="inputX" class="coord-num-input" min="0" max="1024">
+                    <button class="btn-step" data-coord="x" data-delta="1">+1</button>
+                    <button class="btn-step" data-coord="x" data-delta="10">+10</button>
+                  </div>
+                </div>
+
+                <!-- Y -->
+                <div class="coord-box">
+                  <div class="coord-header">
+                    <span>ตำแหน่ง Y (แนวตั้ง)</span>
+                    <span id="yPercent" style="font-size:0.7rem; color:#94a3b8;">0%</span>
+                  </div>
+                  <div class="coord-input-row">
+                    <button class="btn-step" data-coord="y" data-delta="-10">-10</button>
+                    <button class="btn-step" data-coord="y" data-delta="-1">-1</button>
+                    <input type="number" id="inputY" class="coord-num-input" min="0" max="1536">
+                    <button class="btn-step" data-coord="y" data-delta="1">+1</button>
+                    <button class="btn-step" data-coord="y" data-delta="10">+10</button>
+                  </div>
+                </div>
+              </div>
+              <div style="font-size:0.75rem; color:#64748b; margin-top:0.4rem;">
+                💡 เคล็ดลับ: คุณสามารถใช้ปุ่มลูกศร ⬅️ ➡️ ⬆️ ⬇️ บนแป้นพิมพ์เพื่อขยับทีละ 1px (กด Shift ค้างไว้เพื่อขยับทีละ 10px)
+              </div>
+            </div>
+
+            <!-- Font Size -->
+            <div class="inspector-row">
+              <label for="inputFontSize">ขนาดตัวอักษร (px):</label>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <button class="btn-step" id="btnFontMinus" style="padding:0.4rem 0.8rem;">-</button>
+                <input type="number" id="inputFontSize" class="coord-num-input" style="width:100px;" min="8" max="120">
+                <button class="btn-step" id="btnFontPlus" style="padding:0.4rem 0.8rem;">+</button>
+                <input type="range" id="sliderFontSize" min="10" max="80" style="flex:1;">
+              </div>
+            </div>
+
+            <!-- Text Align -->
+            <div class="inspector-row">
+              <label>การจัดแนวข้อความ (Alignment):</label>
+              <div class="align-btn-group">
+                <button class="toggle-btn" data-align="left" id="btnAlignLeft">👈 ชิดซ้าย</button>
+                <button class="toggle-btn" data-align="center" id="btnAlignCenter">🎯 กึ่งกลาง</button>
+                <button class="toggle-btn" data-align="right" id="btnAlignRight">👉 ชิดขวา</button>
+              </div>
+            </div>
+
+            <!-- Font Weight -->
+            <div class="inspector-row">
+              <label>ความหนาตัวอักษร (Weight):</label>
+              <div class="weight-btn-group">
+                <button class="toggle-btn" data-weight="normal" id="btnWeightNormal">ปกติ (Regular)</button>
+                <button class="toggle-btn" data-weight="500" id="btnWeightMedium">ปานกลาง (Medium)</button>
+                <button class="toggle-btn" data-weight="bold" id="btnWeightBold">หนา (Bold)</button>
+              </div>
+            </div>
+
+            <!-- Color Picker -->
+            <div class="inspector-row">
+              <label>สีตัวอักษร (Color):</label>
+              <div class="color-picker-row">
+                <input type="color" id="inputColorPicker" class="color-input-box" value="#002d62">
+                <input type="text" id="inputColorHex" class="color-hex-text" value="#002d62">
+              </div>
+              <div class="color-palette">
+                <button class="swatch-btn" style="background:#002d62;" data-color="#002d62" title="สีกรมท่าหลัก"></button>
+                <button class="swatch-btn" style="background:#e51c24;" data-color="#e51c24" title="สีแดงเตือนภัย"></button>
+                <button class="swatch-btn" style="background:#004b6e;" data-color="#004b6e" title="สีเขียวอมฟ้าโรงพยาบาล"></button>
+                <button class="swatch-btn" style="background:#009944;" data-color="#009944" title="สีเขียวสถานะปกติ"></button>
+                <button class="swatch-btn" style="background:#0066b2;" data-color="#0066b2" title="สีน้ำเงิน"></button>
+                <button class="swatch-btn" style="background:#000000;" data-color="#000000" title="สีดำ"></button>
+                <button class="swatch-btn" style="background:#ffffff; border:1px solid #cbd5e1;" data-color="#ffffff" title="สีขาว"></button>
+              </div>
+            </div>
+
+            <!-- Visibility & Delete -->
+            <div class="inspector-row" style="margin-top:1.25rem; pt:1rem; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+              <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; margin:0;">
+                <input type="checkbox" id="chkVisible" checked> แสดงข้อความนี้บนรูปภาพ
+              </label>
+
+              <button id="btnDeleteCustom" class="btn btn-danger" style="display:none; padding:0.35rem 0.75rem; font-size:0.8rem;">
+                🗑️ ลบข้อความนี้
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Elements List -->
+      <div id="tab-list" class="admin-tab-content">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div class="admin-card-title">📋 รายการองค์ประกอบทั้งหมด</div>
+          </div>
+          <div class="inspector-row">
+            <input type="text" id="searchElements" class="input-control" placeholder="🔍 ค้นหาฟิลด์หรือข้อความ...">
+          </div>
+          <div class="elements-list-container" id="elementsTreeList">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Add Custom Text -->
+      <div id="tab-add" class="admin-tab-content">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div class="admin-card-title">➕ เพิ่มข้อความหรือตัวอักษรใหม่</div>
+          </div>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+            คุณสามารถเพิ่มข้อความ หมายเหตุ คำชี้แจง หรือตราสัญลักษณ์เพิ่มเติมลงบนรูปภาพได้ทุกตำแหน่ง
+          </p>
+
+          <div class="inspector-row">
+            <label for="newTextContent">ข้อความที่ต้องการเพิ่ม:</label>
+            <textarea id="newTextContent" class="input-control" rows="3" placeholder="ระบุข้อความ เช่น 'ศูนย์ประสานงานฉุกเฉิน โทร. 034-xxx'"></textarea>
+          </div>
+
+          <div class="inspector-row">
+            <label>ตำแหน่งเริ่มต้น (X, Y):</label>
+            <div class="coord-group">
+              <input type="number" id="newTextX" class="coord-num-input" value="512" placeholder="X (0-1024)">
+              <input type="number" id="newTextY" class="coord-num-input" value="768" placeholder="Y (0-1536)">
+            </div>
+          </div>
+
+          <div class="inspector-row">
+            <label for="newTextSize">ขนาดตัวอักษร (px):</label>
+            <input type="number" id="newTextSize" class="coord-num-input" value="22">
+          </div>
+
+          <div class="inspector-row">
+            <label>สีข้อความ:</label>
+            <div class="color-picker-row">
+              <input type="color" id="newTextColorPicker" class="color-input-box" value="#002d62">
+              <input type="text" id="newTextColorHex" class="color-hex-text" value="#002d62">
+            </div>
+          </div>
+
+          <div class="inspector-row" style="margin-top:1.5rem;">
+            <button id="btnCreateCustomText" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.65rem;">
+              ✨ เพิ่มข้อความลงบนภาพ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Backup & Import -->
+      <div id="tab-backup" class="admin-tab-content">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div class="admin-card-title">💾 จัดการและสำรองข้อมูลการจัดวาง</div>
+          </div>
+
+          <div class="inspector-row">
+            <button id="btnExportJSON" class="btn btn-secondary" style="width:100%; justify-content:center; margin-bottom:0.75rem;">
+              📤 ดาวน์โหลดไฟล์พิกัด (water_report_layout.json)
+            </button>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+              ดาวน์โหลดการตั้งค่าพิกัดทั้งหมดเก็บไว้ในคอมพิวเตอร์ของคุณเพื่อนำไปใช้กับเครื่องอื่นหรือสำรองไว้
+            </p>
+          </div>
+
+          <div class="inspector-row" style="border-top:1px solid var(--border-color); pt:1rem;">
+            <label for="fileImportJSON">📥 นำเข้าไฟล์พิกัด (.json):</label>
+            <input type="file" id="fileImportJSON" accept=".json" style="width:100%; margin-top:0.35rem; font-size:0.85rem;">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.4rem;">
+              เลือกไฟล์ JSON ที่เคยส่งออกเพื่อกู้คืนตำแหน่งและการตั้งค่า
+            </p>
+          </div>
+
+          <div class="inspector-row" style="border-top:1px solid var(--border-color); pt:1rem;">
+            <label>JSON การจัดวางปัจจุบัน:</label>
+            <textarea id="layoutRawJson" class="input-control" rows="8" style="font-family:monospace; font-size:0.75rem;" readonly></textarea>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="layout_default.js"></script>
+  <script src="assets.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
