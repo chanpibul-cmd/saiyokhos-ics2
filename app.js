@@ -22,6 +22,19 @@ const COLUMN_KEYS = [
   "support_1", "support_2", "support_3", "hosp_status", "reporter_name", "reporter_pos"
 ];
 
+let sheetHeaders = [];
+
+function getExcelColLetter(idx) {
+  let letter = "";
+  idx += 1;
+  while (idx > 0) {
+    const mod = (idx - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    idx = Math.floor((idx - mod) / 26);
+  }
+  return letter;
+}
+
 let rawSheetRows = [];
 let parsedRecords = [];
 let currentRecord = null;
@@ -78,7 +91,9 @@ function showToast(message) {
 async function initAssets() {
   // Load base template 000.png with cache buster
   templateImage = new Image();
-  templateImage.crossOrigin = "anonymous";
+  if (window.location.protocol.startsWith("http")) {
+    templateImage.crossOrigin = "anonymous";
+  }
   const templatePromise = new Promise((resolve) => {
     templateImage.onload = () => resolve();
     templateImage.onerror = () => {
@@ -202,25 +217,43 @@ function fallbackLocalFetch() {
     });
 }
 
+const SECTION_DEFS = [
+  { title: "⏱️ 1. ข้อมูลทั่วไป", range: [0, 1] },
+  { title: "🌊 2. สถานการณ์พื้นที่", range: [2, 7] },
+  { title: "🏥 3. สถานการณ์โรงพยาบาล", range: [8, 15] },
+  { title: "🚑 4. ระบบการแพทย์ฉุกเฉิน (EMS)", range: [16, 19] },
+  { title: "🧓 5. กลุ่มเปราะบางในพื้นที่", range: [20, 24] },
+  { title: "💊 6. ยา / เวชภัณฑ์ / สาธารณูปโภค", range: [25, 31] },
+  { title: "🤝 7. สิ่งที่ต้องการสนับสนุนจากจังหวัด", range: [32, 34] },
+  { title: "👤 8. สถานะและผู้รายงาน", range: [35, 37] }
+];
+
 function processRawRows(rows) {
   if (!rows || rows.length < 2) return;
   rawSheetRows = rows;
+  sheetHeaders = rows[0].map((h) => (h !== undefined && h !== null ? String(h).trim() : ""));
   parsedRecords = [];
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r || !r[0] || !r[0].trim()) continue;
 
-    const rec = {};
-    for (let c = 0; c < COLUMN_KEYS.length; c++) {
-      const key = COLUMN_KEYS[c];
-      rec[key] = r[c] !== undefined ? String(r[c]).trim() : "";
+    const rec = { _rowIndex: i, _cols: [] };
+    for (let c = 0; c < r.length; c++) {
+      const val = r[c] !== undefined ? String(r[c]).trim() : "";
+      rec._cols[c] = val;
+      if (COLUMN_KEYS[c]) rec[COLUMN_KEYS[c]] = val;
+      if (sheetHeaders[c]) rec[sheetHeaders[c]] = val;
     }
-    rec._rowIndex = i;
+    // Alias common renames
+    if (rec._cols[15] !== undefined) rec.patients_affected = rec._cols[15];
+    if (rec._cols[8] !== undefined) rec.hosp_affected = rec._cols[8];
+
     parsedRecords.push(rec);
   }
 
   populateDateSelector();
+  buildDynamicForm(sheetHeaders, currentRecord);
 }
 
 function populateDateSelector() {
@@ -231,8 +264,9 @@ function populateDateSelector() {
   parsedRecords.forEach((rec, idx) => {
     const opt = document.createElement("option");
     opt.value = idx;
-    const thaiDate = formatThaiDate(rec.date);
-    opt.textContent = `${thaiDate || rec.date} (เวลา ${formatThaiTime(rec.time) || "09.00"} น.)`;
+    const thaiDate = formatThaiDate(rec.date || rec._cols?.[0]);
+    const timeVal = formatThaiTime(rec.time || rec._cols?.[1]) || "09.00";
+    opt.textContent = `${thaiDate || rec.date || "แถวที่ " + (idx + 1)} (เวลา ${timeVal} น.)`;
     select.appendChild(opt);
   });
 
@@ -244,37 +278,124 @@ function populateDateSelector() {
 
 function selectRecord(index) {
   if (parsedRecords[index]) {
-    // Clone record so user edits don't overwrite raw immediately
-    currentRecord = { ...parsedRecords[index] };
+    currentRecord = { ...parsedRecords[index], _cols: [...(parsedRecords[index]._cols || [])] };
     updateFormFields(currentRecord);
     renderReport();
   }
 }
 
 // -------------------------------------------------------------
-// Form Synchronization
+// Dynamic Form Generation by Google Sheet Columns
 // -------------------------------------------------------------
-function updateFormFields(rec) {
-  COLUMN_KEYS.forEach((key) => {
-    const el = document.getElementById("field_" + key);
-    if (el) {
-      el.value = rec[key] || "";
+function buildDynamicForm(headers, rec) {
+  const container = document.getElementById("dynamicFormBody");
+  if (!container) return;
+
+  const headerTitle = document.getElementById("formHeaderTitle");
+  if (headerTitle) {
+    headerTitle.textContent = `📝 ตรวจสอบและแก้ไขข้อมูล (${headers.length} รายการ)`;
+  }
+  const countBadge = document.getElementById("formColCountBadge");
+  if (countBadge) {
+    countBadge.textContent = `${headers.length} คอลัมน์`;
+  }
+
+  container.innerHTML = "";
+
+  const sections = [...SECTION_DEFS];
+  if (headers.length > 38) {
+    sections.push({ title: "➕ 9. ข้อมูลเพิ่มเติม (ตาม Sheet)", range: [38, headers.length - 1] });
+  }
+
+  sections.forEach((sec) => {
+    const secDiv = document.createElement("div");
+    secDiv.className = "form-section";
+
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "section-title";
+    titleDiv.textContent = sec.title;
+    secDiv.appendChild(titleDiv);
+
+    const gridDiv = document.createElement("div");
+    gridDiv.className = "form-grid";
+
+    for (let c = sec.range[0]; c <= Math.min(sec.range[1], headers.length - 1); c++) {
+      const colName = headers[c] || (COLUMN_KEYS[c] || `คอลัมน์ ${c + 1}`);
+      const colLetter = getExcelColLetter(c);
+      const val = rec ? (rec._cols?.[c] || (COLUMN_KEYS[c] ? rec[COLUMN_KEYS[c]] : "") || "") : "";
+
+      const groupDiv = document.createElement("div");
+      groupDiv.className = "input-group";
+      if (colName.includes("สนับสนุน") || colName.includes("สถานะ") || colName.includes("เร่งด่วน")) {
+        groupDiv.classList.add("form-grid-full");
+      }
+
+      const label = document.createElement("label");
+      label.style.display = "flex";
+      label.style.alignItems = "center";
+      label.style.gap = "0.35rem";
+      label.innerHTML = `<span class="col-badge">[${colLetter}]</span> ${c + 1}. ${colName}`;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = `col_field_${c}`;
+      input.setAttribute("data-col", c);
+      input.className = "input-control";
+      input.value = val;
+
+      input.addEventListener("input", (e) => {
+        const colIdx = parseInt(e.target.getAttribute("data-col"), 10);
+        const newVal = e.target.value;
+        if (!currentRecord) currentRecord = { _cols: [] };
+        if (!currentRecord._cols) currentRecord._cols = [];
+        currentRecord._cols[colIdx] = newVal;
+        if (COLUMN_KEYS[colIdx]) currentRecord[COLUMN_KEYS[colIdx]] = newVal;
+        if (headers[colIdx]) currentRecord[headers[colIdx]] = newVal;
+        if (colIdx === 15) currentRecord.patients_affected = newVal;
+        if (colIdx === 8) currentRecord.hosp_affected = newVal;
+        debounceRender();
+      });
+
+      groupDiv.appendChild(label);
+      groupDiv.appendChild(input);
+      gridDiv.appendChild(groupDiv);
     }
+
+    secDiv.appendChild(gridDiv);
+    container.appendChild(secDiv);
   });
+
+  // Attach search filter
+  const searchInput = document.getElementById("formSearchInput");
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
+    searchInput.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll("#dynamicFormBody .form-section").forEach((sec) => {
+        let hasVisible = false;
+        sec.querySelectorAll(".input-group").forEach((grp) => {
+          const text = grp.textContent.toLowerCase();
+          const match = text.includes(q);
+          grp.style.display = match ? "block" : "none";
+          if (match) hasVisible = true;
+        });
+        sec.style.display = hasVisible ? "block" : "none";
+      });
+    });
+  }
+}
+
+function updateFormFields(rec) {
+  if (!sheetHeaders || sheetHeaders.length === 0) return;
+  for (let c = 0; c < sheetHeaders.length; c++) {
+    const el = document.getElementById(`col_field_${c}`);
+    if (el) {
+      el.value = rec._cols?.[c] || (COLUMN_KEYS[c] ? rec[COLUMN_KEYS[c]] : "") || "";
+    }
+  }
 }
 
 function bindFormEvents() {
-  COLUMN_KEYS.forEach((key) => {
-    const el = document.getElementById("field_" + key);
-    if (el) {
-      el.addEventListener("input", (e) => {
-        if (!currentRecord) currentRecord = {};
-        currentRecord[key] = e.target.value;
-        debounceRender();
-      });
-    }
-  });
-
   const dateSelect = document.getElementById("dateSelect");
   if (dateSelect) {
     dateSelect.addEventListener("change", (e) => {
@@ -319,7 +440,12 @@ function renderReport() {
 
   // Clear & Draw template background
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+  if (templateImage && templateImage.complete && templateImage.naturalWidth > 0) {
+    ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   const NAVY = "#002d62";
   const RED = "#e51c24";
@@ -419,6 +545,17 @@ function renderReport() {
   // -------------------------------------------------------------
   // 3. Box 2: สถานการณ์โรงพยาบาล (Hospital Situation)
   // -------------------------------------------------------------
+  const hospCfg = layout ? layout.hosp_affected : null;
+  if (!hospCfg || hospCfg.visible !== false) {
+    const hx = hospCfg?.x !== undefined ? hospCfg.x : 745;
+    const hy = hospCfg?.y !== undefined ? hospCfg.y : 332;
+    if (rec.hosp_affected !== undefined && rec.hosp_affected !== null && rec.hosp_affected !== "") {
+      let v = String(rec.hosp_affected).trim();
+      const isRed = v === "ได้รับ" || v === "1" || (v.includes("ได้") && !v.includes("ไม่"));
+      drawDynamicPill(ctx, hx, hy, v, isRed ? "red" : "green");
+    }
+  }
+
   drawItem("staff_total", rec.staff_total, 920, 398, "bold 28px Prompt", DARK_TEAL, "right");
   drawItem("staff_affected", rec.staff_affected, 920, 438, "bold 28px Prompt", DARK_TEAL, "right");
   drawItem("staff_absent", rec.staff_absent, 920, 480, "bold 28px Prompt", DARK_TEAL, "right");

@@ -95,7 +95,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 async function initAssets() {
   templateImage = new Image();
-  templateImage.crossOrigin = "anonymous";
+  if (window.location.protocol.startsWith("http")) {
+    templateImage.crossOrigin = "anonymous";
+  }
   const templatePromise = new Promise((resolve) => {
     templateImage.onload = () => resolve();
     templateImage.onerror = () => {
@@ -439,6 +441,13 @@ function renderSingleElement(ctx, elem) {
 
   // Badges & Pills
   if (elem.type === "badge" || elem.type === "pill") {
+    if (elem.id === "hosp_affected") {
+      const val = elem.sampleText || SAMPLE_RECORD.hosp_affected || "ไม่ได้รับ";
+      const isRed = val === "ได้รับ" || val === "1" || (typeof val === "string" && val.includes("ได้") && !val.includes("ไม่"));
+      drawDynamicPill(ctx, elem.x, elem.y, val, isRed ? "red" : "green");
+      ctx.restore();
+      return;
+    }
     let img = preloadedAssets[elem.assetKey];
     if (img && img.complete) {
       ctx.drawImage(img, elem.x, elem.y);
@@ -618,6 +627,69 @@ function findElementAtCoords(cx, cy, ctx) {
 }
 
 // -------------------------------------------------------------
+// Table Header Quick Selector Dropdowns (Inspector & Stage)
+// -------------------------------------------------------------
+function populateHeaderDropdowns() {
+  const colSelect = document.getElementById("columnHeaderSelect");
+  const stageSelect = document.getElementById("stageColumnSelect");
+  if (!colSelect && !stageSelect) return;
+
+  const makeOptionsHtml = (placeholder) => {
+    let html = `<option value="">${placeholder}</option>`;
+
+    // 1. Google Sheets Columns (38 Columns)
+    html += `<optgroup label="📊 หัวตารางข้อมูลจาก Google Sheets (38 คอลัมน์)">`;
+    if (typeof SHEET_COLUMNS_INFO !== "undefined" && Array.isArray(SHEET_COLUMNS_INFO)) {
+      SHEET_COLUMNS_INFO.forEach((col) => {
+        html += `<option value="${col.key}">[${col.letter}] ${col.index + 1}. ${col.name}</option>`;
+      });
+    }
+    html += `</optgroup>`;
+
+    // 2. Extra Graphic Badges & Assets
+    const extraItems = [];
+    for (const [key, val] of Object.entries(layoutConfig)) {
+      if (key === "custom_texts") continue;
+      const inSheet = typeof SHEET_COLUMNS_INFO !== "undefined" && SHEET_COLUMNS_INFO.some((c) => c.key === key);
+      if (!inSheet && val && typeof val === "object" && val.x !== undefined) {
+        extraItems.push(val);
+      }
+    }
+    if (extraItems.length > 0) {
+      html += `<optgroup label="🎨 องค์ประกอบกราฟิกและป้ายสถานะ">`;
+      extraItems.forEach((item) => {
+        html += `<option value="${item.id}">🏷️ ${item.label || item.id}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    // 3. Custom Texts
+    if (Array.isArray(layoutConfig.custom_texts) && layoutConfig.custom_texts.length > 0) {
+      html += `<optgroup label="✨ ข้อความอิสระที่เพิ่มเอง (${layoutConfig.custom_texts.length})">`;
+      layoutConfig.custom_texts.forEach((item, idx) => {
+        const preview = (item.text || item.label || "ข้อความใหม่").substring(0, 30);
+        html += `<option value="${item.id}">➕ ${idx + 1}. ${preview}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    return html;
+  };
+
+  if (colSelect) {
+    const curVal = colSelect.value;
+    colSelect.innerHTML = makeOptionsHtml("-- คลิกเพื่อเลือกหัวข้อที่ต้องการปรับตำแหน่ง --");
+    if (curVal) colSelect.value = curVal;
+  }
+
+  if (stageSelect) {
+    const curVal = stageSelect.value;
+    stageSelect.innerHTML = makeOptionsHtml("-- เลือกหัวข้อจากตาราง --");
+    if (curVal) stageSelect.value = curVal;
+  }
+}
+
+// -------------------------------------------------------------
 // Selection & Inspector Controller
 // -------------------------------------------------------------
 function selectElement(id) {
@@ -627,6 +699,11 @@ function selectElement(id) {
   const controls = document.getElementById("inspectorControls");
   const title = document.getElementById("inspectorTitle");
   const catBadge = document.getElementById("inspectorCategory");
+
+  const colSelect = document.getElementById("columnHeaderSelect");
+  if (colSelect) colSelect.value = id || "";
+  const stageSelect = document.getElementById("stageColumnSelect");
+  if (stageSelect) stageSelect.value = id || "";
 
   if (!id) {
     if (emptyState) emptyState.style.display = "block";
@@ -715,6 +792,42 @@ function updateInspectorInputs(elem) {
 }
 
 function initInspectorControls() {
+  // Initialize and populate header quick selectors
+  populateHeaderDropdowns();
+
+  const colSelect = document.getElementById("columnHeaderSelect");
+  if (colSelect) {
+    colSelect.addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val) {
+        selectElement(val);
+      } else {
+        selectElement(null);
+      }
+    });
+  }
+
+  const stageSelect = document.getElementById("stageColumnSelect");
+  if (stageSelect) {
+    stageSelect.addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val) {
+        selectElement(val);
+      } else {
+        selectElement(null);
+      }
+    });
+  }
+
+  const btnQuickAddCustom = document.getElementById("btnQuickAddCustom");
+  if (btnQuickAddCustom) {
+    btnQuickAddCustom.addEventListener("click", () => {
+      switchTab("tab-add");
+      const txt = document.getElementById("newTextContent");
+      if (txt) txt.focus();
+    });
+  }
+
   // Direct X/Y Input
   const inputX = document.getElementById("inputX");
   const inputY = document.getElementById("inputY");
@@ -886,6 +999,7 @@ function initInspectorControls() {
       if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบข้อความนี้?")) {
         layoutConfig.custom_texts = layoutConfig.custom_texts.filter((t) => t.id !== selectedId);
         selectElement(null);
+        populateHeaderDropdowns();
         initTreeList();
         renderAdminCanvas();
         showToast("ลบข้อความเรียบร้อยแล้ว");
@@ -926,6 +1040,7 @@ function initInspectorControls() {
       // Reset form
       if (document.getElementById("newTextContent")) document.getElementById("newTextContent").value = "";
 
+      populateHeaderDropdowns();
       initTreeList();
       selectElement(newId);
       showToast("เพิ่มข้อความใหม่เรียบร้อยแล้ว");
@@ -946,6 +1061,19 @@ function initTreeList() {
   const categories = {};
   const all = getAllRenderableElements();
 
+  // Sort all elements by colIndex or logical order
+  all.sort((a, b) => {
+    const idxA = a.colIndex !== undefined ? a.colIndex : (a.type === "custom" ? 200 : 100);
+    const idxB = b.colIndex !== undefined ? b.colIndex : (b.type === "custom" ? 200 : 100);
+    return idxA - idxB;
+  });
+
+  const treeTotalCount = document.getElementById("treeTotalCount");
+  if (treeTotalCount) {
+    const customCount = Array.isArray(layoutConfig.custom_texts) ? layoutConfig.custom_texts.length : 0;
+    treeTotalCount.textContent = `รวม ${all.length} รายการ (38 คอลัมน์${customCount > 0 ? ` + ${customCount} ข้อความเพิ่มเอง` : ""})`;
+  }
+
   all.forEach((elem) => {
     const cat = elem.category || (elem.type === "custom" ? "ข้อความที่เพิ่มเอง" : "ทั่วไป");
     if (!categories[cat]) categories[cat] = [];
@@ -958,21 +1086,38 @@ function initTreeList() {
 
     const titleDiv = document.createElement("div");
     titleDiv.className = "category-title";
-    titleDiv.textContent = `${catName} (${items.length})`;
+    titleDiv.innerHTML = `<span>${catName} (${items.length})</span><span class="cat-arrow">▼</span>`;
+
+    const itemsContainer = document.createElement("div");
+    itemsContainer.className = "category-items";
+
+    titleDiv.addEventListener("click", () => {
+      const isCollapsed = itemsContainer.classList.toggle("collapsed");
+      titleDiv.classList.toggle("collapsed", isCollapsed);
+    });
+
     groupDiv.appendChild(titleDiv);
 
     items.forEach((elem) => {
       const row = document.createElement("div");
       row.className = "element-item-row";
+      if (elem.id === selectedId) row.classList.add("active");
       row.setAttribute("data-id", elem.id);
 
       const labelSpan = document.createElement("span");
       labelSpan.className = "element-item-label";
-      if (elem.type === "custom") {
-        labelSpan.innerHTML = `<span class="custom-item-badge">เพิ่มเอง</span> ${elem.text || elem.label}`;
+      
+      let badgeHtml = "";
+      if (elem.colLetter) {
+        badgeHtml = `<span class="col-badge">[${elem.colLetter}]</span> `;
+      } else if (elem.type === "custom") {
+        badgeHtml = `<span class="custom-item-badge">เพิ่มเอง</span> `;
       } else {
-        labelSpan.textContent = elem.label || elem.id;
+        badgeHtml = `<span class="col-badge" style="background:#f1f5f9; color:#475569;">[🎨]</span> `;
       }
+
+      const labelText = elem.label || elem.text || elem.id;
+      labelSpan.innerHTML = `${badgeHtml}<span>${labelText}</span>`;
 
       const rightDiv = document.createElement("div");
       rightDiv.style.display = "flex";
@@ -1004,28 +1149,60 @@ function initTreeList() {
         selectElement(elem.id);
       });
 
-      groupDiv.appendChild(row);
+      itemsContainer.appendChild(row);
     });
 
+    groupDiv.appendChild(itemsContainer);
     container.appendChild(groupDiv);
   }
 
   // Filter search
   const searchInput = document.getElementById("searchElements");
   if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
+    searchInput.oninput = (e) => {
       const q = e.target.value.toLowerCase().trim();
       document.querySelectorAll(".element-item-row").forEach((row) => {
         const text = row.textContent.toLowerCase();
         row.style.display = text.includes(q) ? "flex" : "none";
       });
-    });
+      // Auto-expand all categories when searching
+      if (q) {
+        document.querySelectorAll(".category-items").forEach((c) => c.classList.remove("collapsed"));
+        document.querySelectorAll(".category-title").forEach((t) => t.classList.remove("collapsed"));
+      }
+    };
+  }
+
+  // Expand / Collapse All buttons
+  const btnExpandAll = document.getElementById("btnExpandAll");
+  if (btnExpandAll) {
+    btnExpandAll.onclick = () => {
+      document.querySelectorAll(".category-items").forEach((c) => c.classList.remove("collapsed"));
+      document.querySelectorAll(".category-title").forEach((t) => t.classList.remove("collapsed"));
+    };
+  }
+  const btnCollapseAll = document.getElementById("btnCollapseAll");
+  if (btnCollapseAll) {
+    btnCollapseAll.onclick = () => {
+      document.querySelectorAll(".category-items").forEach((c) => c.classList.add("collapsed"));
+      document.querySelectorAll(".category-title").forEach((t) => t.classList.add("collapsed"));
+    };
   }
 }
 
 function highlightTreeItem(id) {
   document.querySelectorAll(".element-item-row").forEach((row) => {
-    row.classList.toggle("active", row.getAttribute("data-id") === id);
+    const isSel = row.getAttribute("data-id") === id;
+    row.classList.toggle("active", isSel);
+    if (isSel) {
+      // Ensure its parent category is expanded
+      const parentItems = row.closest(".category-items");
+      if (parentItems) {
+        parentItems.classList.remove("collapsed");
+        const title = parentItems.previousElementSibling;
+        if (title) title.classList.remove("collapsed");
+      }
+    }
   });
 }
 
@@ -1054,6 +1231,7 @@ function initBackupTab() {
         resetLayoutConfig();
         layoutConfig = getLayoutConfig();
         selectElement(null);
+        populateHeaderDropdowns();
         initTreeList();
         renderAdminCanvas();
         updateRawJsonView();
@@ -1095,6 +1273,7 @@ function initBackupTab() {
             layoutConfig = imported;
             saveLayoutConfig(layoutConfig);
             selectElement(null);
+            populateHeaderDropdowns();
             initTreeList();
             renderAdminCanvas();
             updateRawJsonView();
