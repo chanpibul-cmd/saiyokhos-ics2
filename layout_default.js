@@ -1,49 +1,260 @@
 /**
- * Default Layout Configuration for Flood Situation Report Infographic
+ * Layout Configuration for Flood Situation Report Infographic
  * Dimensions: 1024 x 1536 px
- * Maps 1:1 to Google Sheets Columns (A - AL: 38 Columns)
+ * Supports Dynamic Google Sheets Columns (A - BF: 58+ Columns & Future Scalability)
  */
 
+function getExcelColLetter(idx) {
+  let letter = "";
+  let i = Number(idx) + 1;
+  while (i > 0) {
+    const mod = (i - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    i = Math.floor((i - mod) / 26);
+  }
+  return letter;
+}
+
+function categorizeColumn(name, idx) {
+  const n = String(name || "").trim().toLowerCase();
+  if (n === "วันที่" || n === "เวลา" || idx === 0 || idx === 1) {
+    return "⏱️ 1. ข้อมูลทั่วไปและเวลา";
+  }
+  if (n.includes("ตำบล") || n.includes("ระดับน้ำ") || n.includes("เฝ้าระวัง") || n.includes("หมู่บ้าน") || n.includes("ครัวเรือน") || n.includes("ประชาชน") || n.includes("เส้นทาง") || n.includes("แนวโน้ม")) {
+    return "🌊 2. สถานการณ์พื้นที่และระดับน้ำ";
+  }
+  if (n.includes("ติดเตียง") || n.includes("ติดบ้าน") || n.includes("ออกซิเจน") || n.includes("ฟอกไต") || n.includes("ยาต่อเนื่อง") || n.includes("ครรภ์") || n.includes("insulin") || n.includes("เบาหวาน") || n.includes("smiv") || n.includes("เปราะบาง") || n.includes("อพยพ")) {
+    return "🧓 3. กลุ่มเปราะบางในพื้นที่";
+  }
+  if (n.includes("ศูนย์พักพิง") || n.includes("โรงครัว") || n.includes("mcatt") || n.includes("เยียวยา")) {
+    return "🏕️ 4. ศูนย์พักพิงและการเยียวยา";
+  }
+  if (n.includes("โรงพยาบาล") || n.includes("รพ.") || n.includes("บุคลากร") || n.includes("ปฏิบัติงาน") || n.includes("เตียง") || n.includes("ผู้ป่วยใน") || n.includes("ผู้ป่วยที่ได้รับผลกระทบ") || n.includes("ฉุกเฉิน")) {
+    return "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร";
+  }
+  if (n.includes("รถพยาบาล") || n.includes("ems") || n.includes("ส่งต่อ") || n.includes("ปลายทาง")) {
+    return "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)";
+  }
+  if (n.includes("เวชภัณฑ์") || n.includes("อาหาร") || n.includes("น้ำดื่ม") || n.includes("ไฟฟ้า") || n.includes("ประปา") || n.includes("สื่อสาร") || n.includes("internet") || n.includes("ปั่นไฟ") || n.includes("น้ำมัน")) {
+    return "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค";
+  }
+  if (n.includes("สนับสนุน")) {
+    return "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด";
+  }
+  if (n.includes("สถานะ") || n.includes("ผู้รายงาน") || n.includes("ตำแหน่ง")) {
+    return "👤 9. ข้อมูลท้ายรายงาน (Footer)";
+  }
+  return "➕ 10. ข้อมูลเพิ่มเติม (ตาม Sheet)";
+}
+
+function getColumnKey(name, idx) {
+  const clean = String(name || "").replace(/\s+/g, " ").trim();
+  const map = {
+    "วันที่": "date",
+    "เวลา": "time",
+    "พื้นที่เฝ้าระวัง ตำบล": "water_level",
+    "ระดับน้ำ/จุดเฝ้าระวัง": "water_level",
+    "ระดับน้ำ": "water_level",
+    "หมู่บ้านได้รับผลกระทบ": "villages",
+    "ครัวเรือน": "households",
+    "ครัวเรือนที่ได้รับผลกระทบ": "households",
+    "ครัวเรือนที่ได้รับผล    กระทบ": "households",
+    "ประชาชนได้รับผลกระทบ": "people",
+    "เส้นทางถูกตัดขาด": "routes_cut",
+    "แนวโน้ม": "trend",
+    "ผู้ป่วยติดเตียง": "bedridden",
+    "ผู้ป่วยติดบ้าน/ติดเตียง": "bedridden",
+    "ผู้ป่วยติดเตียงได้รับผลกระทบ": "bedridden_affected",
+    "ผู้ป่วยติดเตียงได้รับการช่วยเหลือ": "bedridden_helped",
+    "ผู้ป่วยที่ต้องใช้ออกซิเจน": "oxygen",
+    "ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับผลกระทบ": "oxygen_affected",
+    "ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับการช่วยเหลือ": "oxygen_helped",
+    "ผู้ป่วยฟอกไต": "dialysis",
+    "ผู้ป่วยฟอกไตได้รับผลกระทบ": "dialysis_affected",
+    "ผู้ป่วยฟอกไตได้รับการช่วยเหลือ": "dialysis_helped",
+    "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง": "chronic_med",
+    "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง ": "chronic_med",
+    "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง ได้รับผลกระทบ": "chronic_med_affected",
+    "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง ได้รับการช่วยเหลือ": "chronic_med_helped",
+    "หญิงตั้งครรภ์ใกล้คลอด": "pregnant_total",
+    "หญิงตั้งครรภ์ใกล้คลอดได้รับผลกระทบ": "pregnant_affected",
+    "หญิงตั้งครรภ์ใกล้คลอดได้รับการช่วยเหลือ": "pregnant_helped",
+    "ผู้ป่วยเบาหวานที่ต้องรับinsulin": "diabetes_total",
+    "ผู้ป่วยเบาหวานที่ต้องรับinsulinได้รับผลกระทบ": "diabetes_affected",
+    "ผู้ป่วยเบาหวานที่ต้องรับinsulinได้รับการช่วยเหลือ": "diabetes_helped",
+    "ผู้ป่วย SMIV": "smiv_total",
+    "ผู้ป่วย   SMIV": "smiv_total",
+    "ผู้ป่วย SMIV ได้รับผลกระทบ": "smiv_affected",
+    "ผู้ป่วย   SMIV    ได้รับผลกระทบ": "smiv_affected",
+    "ผู้ป่วย SMIV ได้รับการช่วยเหลือ": "smiv_helped",
+    "ผู้ป่วย   SMIV    ได้รับการช่วยเหลือ": "smiv_helped",
+    "ศูนย์พักพิงที่เปิดบริการ (แห่ง)": "shelter_total",
+    "ศูนย์พักพิงที่เปิดบริการ": "shelter_total",
+    "จำนวนผู้ใช้ศูนย์พักพิง(คน)": "shelter_people",
+    "จำนวนผู้ใช้ศูนย์พักพิง": "shelter_people",
+    "โรงครัวสนาม จำนวน": "kitchen_total",
+    "โรงครัวสนาม": "kitchen_total",
+    "MCATT เข้าดำเนินการเยียวยา": "mcatt_status",
+    "MCATT  เข้าดำเนินการเยียวยา": "mcatt_status",
+    "โรงพยาบาลได้รับผลกระทบ": "hosp_affected",
+    "บุคลากรทั้งหมด": "staff_total",
+    "บุคลากรได้รับผลกระทบ": "staff_affected",
+    "ได้รับการช่วยเหลือจากรพ.": "staff_helped",
+    "ได้รับการช่วยเหลือจากรพ": "staff_helped",
+    "ไม่สามารถมาปฏิบัติงาน": "staff_absent",
+    "เตียงทั้งหมด": "beds_total",
+    "ผู้ป่วยในปัจจุบัน": "beds_current",
+    "เตียงพร้อมรับผู้ป่วย": "beds_available",
+    "ผู้ป่วยที่ได้รับผลกระทบ": "patients_affected",
+    "ห้องฉุกเฉินพร้อมใช้งาน": "patients_affected",
+    "รถพยาบาลพร้อมใช้งาน": "ambulance_ready",
+    "EMS": "ems_status",
+    "การส่งต่อผู้ป่วย": "referral_status",
+    "โรงพยาบาลปลายทางที่ประสานไว้": "dest_hospital",
+    "ยาและเวชภัณฑ์": "medicine",
+    "อาหาร/น้ำดื่ม": "food_water",
+    "ไฟฟ้า": "electricity",
+    "น้ำประปา": "tap_water",
+    "ระบบสื่อสาร/Internet": "internet",
+    "เครื่องปั่นไฟ": "generator",
+    "น้ำมันสำรอง": "fuel",
+    "สิ่งที่ต้องการสนับสนุน 1": "support_1",
+    "สิ่งที่ต้องการสนับสนุน 2": "support_2",
+    "สิ่งที่ต้องการสนับสนุน 3": "support_3",
+    "สิ่งที่ต้องการสนับสนุน 3 / เพิ่มเติม อื่นๆ": "support_3",
+    "สิ่งที่ต้องการสนับสนุน 3 / เพิ่มเติม อื่นๆ ": "support_3",
+    "สถานะโรงพยาบาล": "hosp_status",
+    "ผู้รายงาน": "reporter_name",
+    "ตำแหน่ง": "reporter_pos",
+    "ต้องอพยพเร่งด่วน": "urgent_evac"
+  };
+
+  if (map[clean]) return map[clean];
+  for (const [k, v] of Object.entries(map)) {
+    if (clean.replace(/[\s\-_/.]/g, "") === k.replace(/[\s\-_/.]/g, "")) {
+      return v;
+    }
+  }
+
+  // Fallback for custom/future columns
+  const letter = getExcelColLetter(idx).toLowerCase();
+  return `col_${letter}`;
+}
+
+// Initial 58 columns matching Google Sheets "data" (A - BF)
 const SHEET_COLUMNS_INFO = [
-  { index: 0, letter: "A", key: "date", name: "วันที่", category: "ส่วนหัว (Header)" },
-  { index: 1, letter: "B", key: "time", name: "เวลา", category: "ส่วนหัว (Header)" },
-  { index: 2, letter: "C", key: "water_level", name: "ระดับน้ำ/จุดเฝ้าระวัง", category: "1. สถานการณ์พื้นที่" },
-  { index: 3, letter: "D", key: "villages", name: "หมู่บ้านได้รับผลกระทบ", category: "1. สถานการณ์พื้นที่" },
-  { index: 4, letter: "E", key: "households", name: "ครัวเรือน", category: "1. สถานการณ์พื้นที่" },
-  { index: 5, letter: "F", key: "people", name: "ประชาชนได้รับผลกระทบ", category: "1. สถานการณ์พื้นที่" },
-  { index: 6, letter: "G", key: "routes_cut", name: "เส้นทางถูกตัดขาด", category: "1. สถานการณ์พื้นที่" },
-  { index: 7, letter: "H", key: "trend", name: "แนวโน้ม", category: "1. สถานการณ์พื้นที่" },
-  { index: 8, letter: "I", key: "hosp_affected", name: "โรงพยาบาลได้รับผลกระทบ", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 9, letter: "J", key: "staff_total", name: "บุคลากรทั้งหมด", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 10, letter: "K", key: "staff_affected", name: "บุคลากรได้รับผลกระทบ", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 11, letter: "L", key: "staff_absent", name: "ไม่สามารถมาปฏิบัติงาน", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 12, letter: "M", key: "beds_total", name: "เตียงทั้งหมด", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 13, letter: "N", key: "beds_current", name: "ผู้ป่วยในปัจจุบัน", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 14, letter: "O", key: "beds_available", name: "เตียงพร้อมรับผู้ป่วย", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 15, letter: "P", key: "patients_affected", name: "ผู้ป่วยที่ได้รับผลกระทบ", category: "2. สถานการณ์โรงพยาบาล" },
-  { index: 16, letter: "Q", key: "ambulance_ready", name: "รถพยาบาลพร้อมใช้งาน", category: "3. ระบบการแพทย์ฉุกเฉิน" },
-  { index: 17, letter: "R", key: "ems_status", name: "EMS", category: "3. ระบบการแพทย์ฉุกเฉิน" },
-  { index: 18, letter: "S", key: "referral_status", name: "การส่งต่อผู้ป่วย", category: "3. ระบบการแพทย์ฉุกเฉิน" },
-  { index: 19, letter: "T", key: "dest_hospital", name: "โรงพยาบาลปลายทางที่ประสานไว้", category: "3. ระบบการแพทย์ฉุกเฉิน" },
-  { index: 20, letter: "U", key: "bedridden", name: "ผู้ป่วยติดบ้าน/ติดเตียง", category: "4. กลุ่มเปราะบางในพื้นที่" },
-  { index: 21, letter: "V", key: "oxygen", name: "ผู้ป่วยที่ต้องใช้ออกซิเจน", category: "4. กลุ่มเปราะบางในพื้นที่" },
-  { index: 22, letter: "W", key: "dialysis", name: "ผู้ป่วยฟอกไต", category: "4. กลุ่มเปราะบางในพื้นที่" },
-  { index: 23, letter: "X", key: "chronic_med", name: "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง", category: "4. กลุ่มเปราะบางในพื้นที่" },
-  { index: 24, letter: "Y", key: "urgent_evac", name: "ต้องอพยพเร่งด่วน", category: "4. กลุ่มเปราะบางในพื้นที่" },
-  { index: 25, letter: "Z", key: "medicine", name: "ยาและเวชภัณฑ์", category: "5. ยา/สาธารณูปโภค" },
-  { index: 26, letter: "AA", key: "food_water", name: "อาหาร/น้ำดื่ม", category: "5. ยา/สาธารณูปโภค" },
-  { index: 27, letter: "AB", key: "electricity", name: "ไฟฟ้า", category: "5. ยา/สาธารณูปโภค" },
-  { index: 28, letter: "AC", key: "tap_water", name: "น้ำประปา", category: "5. ยา/สาธารณูปโภค" },
-  { index: 29, letter: "AD", key: "internet", name: "ระบบสื่อสาร/Internet", category: "5. ยา/สาธารณูปโภค" },
-  { index: 30, letter: "AE", key: "generator", name: "เครื่องปั่นไฟ", category: "5. ยา/สาธารณูปโภค" },
-  { index: 31, letter: "AF", key: "fuel", name: "น้ำมันสำรอง", category: "5. ยา/สาธารณูปโภค" },
-  { index: 32, letter: "AG", key: "support_1", name: "สิ่งที่ต้องการสนับสนุน 1", category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
-  { index: 33, letter: "AH", key: "support_2", name: "สิ่งที่ต้องการสนับสนุน 2", category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
-  { index: 34, letter: "AI", key: "support_3", name: "สิ่งที่ต้องการสนับสนุน 3", category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
-  { index: 35, letter: "AJ", key: "hosp_status", name: "สถานะโรงพยาบาล", category: "7. ข้อมูลท้ายรายงาน (Footer)" },
-  { index: 36, letter: "AK", key: "reporter_name", name: "ผู้รายงาน", category: "7. ข้อมูลท้ายรายงาน (Footer)" },
-  { index: 37, letter: "AL", key: "reporter_pos", name: "ตำแหน่ง", category: "7. ข้อมูลท้ายรายงาน (Footer)" }
+  { index: 0, letter: "A", key: "date", name: "วันที่", category: "⏱️ 1. ข้อมูลทั่วไปและเวลา" },
+  { index: 1, letter: "B", key: "time", name: "เวลา", category: "⏱️ 1. ข้อมูลทั่วไปและเวลา" },
+  { index: 2, letter: "C", key: "water_level", name: "พื้นที่เฝ้าระวัง ตำบล", category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ" },
+  { index: 3, letter: "D", key: "villages", name: "หมู่บ้านได้รับผลกระทบ", category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ" },
+  { index: 4, letter: "E", key: "households", name: "ครัวเรือนที่ได้รับผลกระทบ", category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ" },
+  { index: 5, letter: "F", key: "routes_cut", name: "เส้นทางถูกตัดขาด", category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ" },
+  { index: 6, letter: "G", key: "trend", name: "แนวโน้ม", category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ" },
+  { index: 7, letter: "H", key: "bedridden", name: "ผู้ป่วยติดเตียง", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 8, letter: "I", key: "bedridden_affected", name: "ผู้ป่วยติดเตียงได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 9, letter: "J", key: "bedridden_helped", name: "ผู้ป่วยติดเตียงได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 10, letter: "K", key: "oxygen", name: "ผู้ป่วยที่ต้องใช้ออกซิเจน", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 11, letter: "L", key: "oxygen_affected", name: "ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 12, letter: "M", key: "oxygen_helped", name: "ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 13, letter: "N", key: "dialysis", name: "ผู้ป่วยฟอกไต", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 14, letter: "O", key: "dialysis_affected", name: "ผู้ป่วยฟอกไตได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 15, letter: "P", key: "dialysis_helped", name: "ผู้ป่วยฟอกไตได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 16, letter: "Q", key: "chronic_med", name: "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 17, letter: "R", key: "chronic_med_affected", name: "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง ได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 18, letter: "S", key: "chronic_med_helped", name: "ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง ได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 19, letter: "T", key: "pregnant_total", name: "หญิงตั้งครรภ์ใกล้คลอด", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 20, letter: "U", key: "pregnant_affected", name: "หญิงตั้งครรภ์ใกล้คลอดได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 21, letter: "V", key: "pregnant_helped", name: "หญิงตั้งครรภ์ใกล้คลอดได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 22, letter: "W", key: "diabetes_total", name: "ผู้ป่วยเบาหวานที่ต้องรับinsulin", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 23, letter: "X", key: "diabetes_affected", name: "ผู้ป่วยเบาหวานที่ต้องรับinsulinได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 24, letter: "Y", key: "diabetes_helped", name: "ผู้ป่วยเบาหวานที่ต้องรับinsulinได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 25, letter: "Z", key: "smiv_total", name: "ผู้ป่วย SMIV", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 26, letter: "AA", key: "smiv_affected", name: "ผู้ป่วย SMIV ได้รับผลกระทบ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 27, letter: "AB", key: "smiv_helped", name: "ผู้ป่วย SMIV ได้รับการช่วยเหลือ", category: "🧓 3. กลุ่มเปราะบางในพื้นที่" },
+  { index: 28, letter: "AC", key: "shelter_total", name: "ศูนย์พักพิงที่เปิดบริการ (แห่ง)", category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา" },
+  { index: 29, letter: "AD", key: "shelter_people", name: "จำนวนผู้ใช้ศูนย์พักพิง(คน)", category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา" },
+  { index: 30, letter: "AE", key: "kitchen_total", name: "โรงครัวสนาม จำนวน", category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา" },
+  { index: 31, letter: "AF", key: "mcatt_status", name: "MCATT เข้าดำเนินการเยียวยา", category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา" },
+  { index: 32, letter: "AG", key: "hosp_affected", name: "โรงพยาบาลได้รับผลกระทบ", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 33, letter: "AH", key: "staff_total", name: "บุคลากรทั้งหมด", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 34, letter: "AI", key: "staff_affected", name: "บุคลากรได้รับผลกระทบ", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 35, letter: "AJ", key: "staff_helped", name: "ได้รับการช่วยเหลือจากรพ.", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 36, letter: "AK", key: "staff_absent", name: "ไม่สามารถมาปฏิบัติงาน", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 37, letter: "AL", key: "beds_total", name: "เตียงทั้งหมด", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 38, letter: "AM", key: "beds_current", name: "ผู้ป่วยในปัจจุบัน", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 39, letter: "AN", key: "beds_available", name: "เตียงพร้อมรับผู้ป่วย", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 40, letter: "AO", key: "patients_affected", name: "ผู้ป่วยที่ได้รับผลกระทบ", category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร" },
+  { index: 41, letter: "AP", key: "ambulance_ready", name: "รถพยาบาลพร้อมใช้งาน", category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)" },
+  { index: 42, letter: "AQ", key: "ems_status", name: "EMS", category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)" },
+  { index: 43, letter: "AR", key: "referral_status", name: "การส่งต่อผู้ป่วย", category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)" },
+  { index: 44, letter: "AS", key: "dest_hospital", name: "โรงพยาบาลปลายทางที่ประสานไว้", category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)" },
+  { index: 45, letter: "AT", key: "medicine", name: "ยาและเวชภัณฑ์", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 46, letter: "AU", key: "food_water", name: "อาหาร/น้ำดื่ม", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 47, letter: "AV", key: "electricity", name: "ไฟฟ้า", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 48, letter: "AW", key: "tap_water", name: "น้ำประปา", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 49, letter: "AX", key: "internet", name: "ระบบสื่อสาร/Internet", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 50, letter: "AY", key: "generator", name: "เครื่องปั่นไฟ", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 51, letter: "AZ", key: "fuel", name: "น้ำมันสำรอง", category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค" },
+  { index: 52, letter: "BA", key: "support_1", name: "สิ่งที่ต้องการสนับสนุน 1", category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
+  { index: 53, letter: "BB", key: "support_2", name: "สิ่งที่ต้องการสนับสนุน 2", category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
+  { index: 54, letter: "BC", key: "support_3", name: "สิ่งที่ต้องการสนับสนุน 3 / เพิ่มเติม อื่นๆ", category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด" },
+  { index: 55, letter: "BD", key: "hosp_status", name: "สถานะโรงพยาบาล", category: "👤 9. ข้อมูลท้ายรายงาน (Footer)" },
+  { index: 56, letter: "BE", key: "reporter_name", name: "ผู้รายงาน", category: "👤 9. ข้อมูลท้ายรายงาน (Footer)" },
+  { index: 57, letter: "BF", key: "reporter_pos", name: "ตำแหน่ง", category: "👤 9. ข้อมูลท้ายรายงาน (Footer)" }
 ];
+
+/**
+ * Synchronizes sheet headers dynamically to support 58+ or any future columns.
+ */
+function syncSheetColumns(headers) {
+  if (!headers || !Array.isArray(headers)) return;
+  headers.forEach((h, idx) => {
+    const name = String(h || "").trim();
+    if (!name && idx >= SHEET_COLUMNS_INFO.length) return;
+    const letter = getExcelColLetter(idx);
+    const key = getColumnKey(name, idx);
+    const category = categorizeColumn(name, idx);
+
+    const existingIdx = SHEET_COLUMNS_INFO.findIndex((c) => c.key === key || c.index === idx);
+    const infoObj = {
+      index: idx,
+      letter: letter,
+      key: key,
+      name: name || `คอลัมน์ [${letter}]`,
+      category: category
+    };
+
+    if (existingIdx >= 0) {
+      SHEET_COLUMNS_INFO[existingIdx] = { ...SHEET_COLUMNS_INFO[existingIdx], ...infoObj };
+    } else {
+      SHEET_COLUMNS_INFO.push(infoObj);
+    }
+
+    if (!DEFAULT_LAYOUT[key]) {
+      DEFAULT_LAYOUT[key] = {
+        id: key,
+        colIndex: idx,
+        colLetter: letter,
+        label: `[${letter}] ${idx + 1}. ${name || key}`,
+        category: category,
+        type: "text",
+        x: 512,
+        y: 768,
+        fontSize: 20,
+        fontWeight: "bold",
+        fontFamily: "Prompt",
+        color: "#002d62",
+        align: "left",
+        visible: false
+      };
+    } else {
+      DEFAULT_LAYOUT[key].colIndex = idx;
+      DEFAULT_LAYOUT[key].colLetter = letter;
+      DEFAULT_LAYOUT[key].label = `[${letter}] ${idx + 1}. ${name || DEFAULT_LAYOUT[key].label}`;
+      DEFAULT_LAYOUT[key].category = category;
+    }
+  });
+}
 
 const DEFAULT_LAYOUT = {
   // 1. Header (A - B)
@@ -52,7 +263,7 @@ const DEFAULT_LAYOUT = {
     colIndex: 0,
     colLetter: "A",
     label: "[A] 1. วันที่ (ส่วนหัว)",
-    category: "ส่วนหัว (Header)",
+    category: "⏱️ 1. ข้อมูลทั่วไปและเวลา",
     type: "text",
     x: 338,
     y: 210,
@@ -68,7 +279,7 @@ const DEFAULT_LAYOUT = {
     colIndex: 1,
     colLetter: "B",
     label: "[B] 2. เวลา (ส่วนหัว)",
-    category: "ส่วนหัว (Header)",
+    category: "⏱️ 1. ข้อมูลทั่วไปและเวลา",
     type: "text",
     x: 658,
     y: 210,
@@ -80,13 +291,13 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 2. Box 1: สถานการณ์พื้นที่ (C - H)
+  // 2. Box 1: สถานการณ์พื้นที่ (C - G)
   water_level: {
     id: "water_level",
     colIndex: 2,
     colLetter: "C",
-    label: "[C] 3. ระดับน้ำ/จุดเฝ้าระวัง (จุด)",
-    category: "1. สถานการณ์พื้นที่",
+    label: "[C] 3. พื้นที่เฝ้าระวัง ตำบล / ระดับน้ำ",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "text",
     x: 374,
     y: 338,
@@ -102,7 +313,7 @@ const DEFAULT_LAYOUT = {
     colIndex: 3,
     colLetter: "D",
     label: "[D] 4. หมู่บ้านได้รับผลกระทบ (แห่ง)",
-    category: "1. สถานการณ์พื้นที่",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "text",
     x: 374,
     y: 390,
@@ -118,7 +329,7 @@ const DEFAULT_LAYOUT = {
     colIndex: 4,
     colLetter: "E",
     label: "[E] 5. ครัวเรือนได้รับผลกระทบ (ครัวเรือน)",
-    category: "1. สถานการณ์พื้นที่",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "text",
     x: 374,
     y: 444,
@@ -131,10 +342,8 @@ const DEFAULT_LAYOUT = {
   },
   people: {
     id: "people",
-    colIndex: 5,
-    colLetter: "F",
-    label: "[F] 6. ประชาชนได้รับผลกระทบ (คน)",
-    category: "1. สถานการณ์พื้นที่",
+    label: "ประชาชนได้รับผลกระทบ (คน)",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "text",
     x: 374,
     y: 499,
@@ -143,14 +352,14 @@ const DEFAULT_LAYOUT = {
     fontFamily: "Prompt",
     color: "#e51c24",
     align: "center",
-    visible: true
+    visible: false
   },
   routes_cut: {
     id: "routes_cut",
-    colIndex: 6,
-    colLetter: "G",
-    label: "[G] 7. เส้นทางถูกตัดขาด (จุด)",
-    category: "1. สถานการณ์พื้นที่",
+    colIndex: 5,
+    colLetter: "F",
+    label: "[F] 6. เส้นทางถูกตัดขาด (จุด)",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "text",
     x: 374,
     y: 556,
@@ -163,10 +372,10 @@ const DEFAULT_LAYOUT = {
   },
   trend: {
     id: "trend",
-    colIndex: 7,
-    colLetter: "H",
-    label: "[H] 8. แนวโน้ม (ป้ายสถานะ)",
-    category: "1. สถานการณ์พื้นที่",
+    colIndex: 6,
+    colLetter: "G",
+    label: "[G] 7. แนวโน้ม (ป้ายสถานะ)",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "badge",
     x: 248,
     y: 618,
@@ -175,20 +384,20 @@ const DEFAULT_LAYOUT = {
   checkboxes: {
     id: "checkboxes",
     label: "ตัวเลือกแนวโน้ม (Checkboxes)",
-    category: "1. สถานการณ์พื้นที่",
+    category: "🌊 2. สถานการณ์พื้นที่และระดับน้ำ",
     type: "badge",
     x: 245,
     y: 660,
     visible: true
   },
 
-  // 3. Box 2: สถานการณ์โรงพยาบาล (I - P)
+  // 3. Box 2: สถานการณ์โรงพยาบาล
   hosp_affected: {
     id: "hosp_affected",
-    colIndex: 8,
-    colLetter: "I",
-    label: "[I] 9. โรงพยาบาลได้รับผลกระทบ (ป้ายสถานะ)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 32,
+    colLetter: "AG",
+    label: "[AG] 33. โรงพยาบาลได้รับผลกระทบ (ป้ายสถานะ)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "badge",
     assetKey: "hosp_badge",
     x: 360,
@@ -197,10 +406,10 @@ const DEFAULT_LAYOUT = {
   },
   staff_total: {
     id: "staff_total",
-    colIndex: 9,
-    colLetter: "J",
-    label: "[J] 10. บุคลากรทั้งหมด (คน)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 33,
+    colLetter: "AH",
+    label: "[AH] 34. บุคลากรทั้งหมด (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 398,
@@ -213,10 +422,10 @@ const DEFAULT_LAYOUT = {
   },
   staff_affected: {
     id: "staff_affected",
-    colIndex: 10,
-    colLetter: "K",
-    label: "[K] 11. บุคลากรได้รับผลกระทบ (คน)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 34,
+    colLetter: "AI",
+    label: "[AI] 35. บุคลากรได้รับผลกระทบ (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 438,
@@ -227,12 +436,28 @@ const DEFAULT_LAYOUT = {
     align: "right",
     visible: true
   },
+  staff_helped: {
+    id: "staff_helped",
+    colIndex: 35,
+    colLetter: "AJ",
+    label: "[AJ] 36. ได้รับการช่วยเหลือจากรพ. (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
+    type: "text",
+    x: 920,
+    y: 460,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#004b6e",
+    align: "right",
+    visible: false
+  },
   staff_absent: {
     id: "staff_absent",
-    colIndex: 11,
-    colLetter: "L",
-    label: "[L] 12. ไม่สามารถมาปฏิบัติงาน (คน)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 36,
+    colLetter: "AK",
+    label: "[AK] 37. ไม่สามารถมาปฏิบัติงาน (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 480,
@@ -245,10 +470,10 @@ const DEFAULT_LAYOUT = {
   },
   beds_total: {
     id: "beds_total",
-    colIndex: 12,
-    colLetter: "M",
-    label: "[M] 13. เตียงทั้งหมด (เตียง)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 37,
+    colLetter: "AL",
+    label: "[AL] 38. เตียงทั้งหมด (เตียง)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 526,
@@ -261,10 +486,10 @@ const DEFAULT_LAYOUT = {
   },
   beds_current: {
     id: "beds_current",
-    colIndex: 13,
-    colLetter: "N",
-    label: "[N] 14. ผู้ป่วยในปัจจุบัน (คน)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 38,
+    colLetter: "AM",
+    label: "[AM] 39. ผู้ป่วยในปัจจุบัน (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 567,
@@ -277,10 +502,10 @@ const DEFAULT_LAYOUT = {
   },
   beds_available: {
     id: "beds_available",
-    colIndex: 14,
-    colLetter: "O",
-    label: "[O] 15. เตียงพร้อมรับผู้ป่วย (เตียง)",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 39,
+    colLetter: "AN",
+    label: "[AN] 40. เตียงพร้อมรับผู้ป่วย (เตียง)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 608,
@@ -293,10 +518,10 @@ const DEFAULT_LAYOUT = {
   },
   patients_affected: {
     id: "patients_affected",
-    colIndex: 15,
-    colLetter: "P",
-    label: "[P] 16. ผู้ป่วยที่ได้รับผลกระทบ",
-    category: "2. สถานการณ์โรงพยาบาล",
+    colIndex: 40,
+    colLetter: "AO",
+    label: "[AO] 41. ผู้ป่วยที่ได้รับผลกระทบ (คน)",
+    category: "🏥 5. สถานการณ์โรงพยาบาลและบุคลากร",
     type: "text",
     x: 920,
     y: 649,
@@ -308,13 +533,13 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 4. Box 3: ระบบการแพทย์ฉุกเฉิน (Q - T)
+  // 4. Box 3: ระบบการแพทย์ฉุกเฉิน (EMS)
   ambulance_ready: {
     id: "ambulance_ready",
-    colIndex: 16,
-    colLetter: "Q",
-    label: "[Q] 17. รถพยาบาลพร้อมใช้งาน",
-    category: "3. ระบบการแพทย์ฉุกเฉิน",
+    colIndex: 41,
+    colLetter: "AP",
+    label: "[AP] 42. รถพยาบาลพร้อมใช้งาน (คัน)",
+    category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)",
     type: "text",
     x: 422,
     y: 788,
@@ -327,10 +552,10 @@ const DEFAULT_LAYOUT = {
   },
   ems_status: {
     id: "ems_status",
-    colIndex: 17,
-    colLetter: "R",
-    label: "[R] 18. EMS (ป้ายสถานะ)",
-    category: "3. ระบบการแพทย์ฉุกเฉิน",
+    colIndex: 42,
+    colLetter: "AQ",
+    label: "[AQ] 43. EMS (ป้ายสถานะ)",
+    category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)",
     type: "badge",
     x: 360,
     y: 835,
@@ -338,10 +563,10 @@ const DEFAULT_LAYOUT = {
   },
   referral_status: {
     id: "referral_status",
-    colIndex: 18,
-    colLetter: "S",
-    label: "[S] 19. การส่งต่อผู้ป่วย (ป้ายสถานะ)",
-    category: "3. ระบบการแพทย์ฉุกเฉิน",
+    colIndex: 43,
+    colLetter: "AR",
+    label: "[AR] 44. การส่งต่อผู้ป่วย (ป้ายสถานะ)",
+    category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)",
     type: "badge",
     x: 360,
     y: 895,
@@ -349,10 +574,10 @@ const DEFAULT_LAYOUT = {
   },
   dest_hospital: {
     id: "dest_hospital",
-    colIndex: 19,
-    colLetter: "T",
-    label: "[T] 20. โรงพยาบาลปลายทางที่ประสานไว้",
-    category: "3. ระบบการแพทย์ฉุกเฉิน",
+    colIndex: 44,
+    colLetter: "AS",
+    label: "[AS] 45. โรงพยาบาลปลายทางที่ประสานไว้",
+    category: "🚑 6. ระบบการแพทย์ฉุกเฉิน (EMS)",
     type: "text",
     x: 422,
     y: 960,
@@ -364,13 +589,13 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 5. Box 4: กลุ่มเปราะบางในพื้นที่ (U - Y)
+  // 5. Box 4: กลุ่มเปราะบางในพื้นที่
   bedridden: {
     id: "bedridden",
-    colIndex: 20,
-    colLetter: "U",
-    label: "[U] 21. ผู้ป่วยติดบ้าน/ติดเตียง",
-    category: "4. กลุ่มเปราะบางในพื้นที่",
+    colIndex: 7,
+    colLetter: "H",
+    label: "[H] 8. ผู้ป่วยติดเตียง (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
     x: 898,
     y: 783,
@@ -381,12 +606,44 @@ const DEFAULT_LAYOUT = {
     align: "right",
     visible: true
   },
+  bedridden_affected: {
+    id: "bedridden_affected",
+    colIndex: 8,
+    colLetter: "I",
+    label: "[I] 9. ผู้ป่วยติดเตียงได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  bedridden_helped: {
+    id: "bedridden_helped",
+    colIndex: 9,
+    colLetter: "J",
+    label: "[J] 10. ผู้ป่วยติดเตียงได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
   oxygen: {
     id: "oxygen",
-    colIndex: 21,
-    colLetter: "V",
-    label: "[V] 22. ผู้ป่วยที่ต้องใช้ออกซิเจน",
-    category: "4. กลุ่มเปราะบางในพื้นที่",
+    colIndex: 10,
+    colLetter: "K",
+    label: "[K] 11. ผู้ป่วยที่ต้องใช้ออกซิเจน (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
     x: 898,
     y: 840,
@@ -397,12 +654,44 @@ const DEFAULT_LAYOUT = {
     align: "right",
     visible: true
   },
+  oxygen_affected: {
+    id: "oxygen_affected",
+    colIndex: 11,
+    colLetter: "L",
+    label: "[L] 12. ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  oxygen_helped: {
+    id: "oxygen_helped",
+    colIndex: 12,
+    colLetter: "M",
+    label: "[M] 13. ผู้ป่วยที่ต้องใช้ออกซิเจนได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
   dialysis: {
     id: "dialysis",
-    colIndex: 22,
-    colLetter: "W",
-    label: "[W] 23. ผู้ป่วยฟอกไต",
-    category: "4. กลุ่มเปราะบางในพื้นที่",
+    colIndex: 13,
+    colLetter: "N",
+    label: "[N] 14. ผู้ป่วยฟอกไต (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
     x: 898,
     y: 897,
@@ -413,12 +702,44 @@ const DEFAULT_LAYOUT = {
     align: "right",
     visible: true
   },
+  dialysis_affected: {
+    id: "dialysis_affected",
+    colIndex: 14,
+    colLetter: "O",
+    label: "[O] 15. ผู้ป่วยฟอกไตได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  dialysis_helped: {
+    id: "dialysis_helped",
+    colIndex: 15,
+    colLetter: "P",
+    label: "[P] 16. ผู้ป่วยฟอกไตได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
   chronic_med: {
     id: "chronic_med",
-    colIndex: 23,
-    colLetter: "X",
-    label: "[X] 24. ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง",
-    category: "4. กลุ่มเปราะบางในพื้นที่",
+    colIndex: 16,
+    colLetter: "Q",
+    label: "[Q] 17. ผู้ป่วยที่ต้องได้รับยาต่อเนื่อง (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
     x: 898,
     y: 954,
@@ -429,12 +750,186 @@ const DEFAULT_LAYOUT = {
     align: "right",
     visible: true
   },
-  urgent_evac: {
-    id: "urgent_evac",
+  chronic_med_affected: {
+    id: "chronic_med_affected",
+    colIndex: 17,
+    colLetter: "R",
+    label: "[R] 18. ได้รับยาต่อเนื่อง ได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  chronic_med_helped: {
+    id: "chronic_med_helped",
+    colIndex: 18,
+    colLetter: "S",
+    label: "[S] 19. ได้รับยาต่อเนื่อง ได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  pregnant_total: {
+    id: "pregnant_total",
+    colIndex: 19,
+    colLetter: "T",
+    label: "[T] 20. หญิงตั้งครรภ์ใกล้คลอด (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  pregnant_affected: {
+    id: "pregnant_affected",
+    colIndex: 20,
+    colLetter: "U",
+    label: "[U] 21. หญิงตั้งครรภ์ได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  pregnant_helped: {
+    id: "pregnant_helped",
+    colIndex: 21,
+    colLetter: "V",
+    label: "[V] 22. หญิงตั้งครรภ์ได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  diabetes_total: {
+    id: "diabetes_total",
+    colIndex: 22,
+    colLetter: "W",
+    label: "[W] 23. เบาหวานที่ต้องรับinsulin",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  diabetes_affected: {
+    id: "diabetes_affected",
+    colIndex: 23,
+    colLetter: "X",
+    label: "[X] 24. เบาหวานinsulin ได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  diabetes_helped: {
+    id: "diabetes_helped",
     colIndex: 24,
     colLetter: "Y",
-    label: "[Y] 25. ต้องอพยพเร่งด่วน",
-    category: "4. กลุ่มเปราะบางในพื้นที่",
+    label: "[Y] 25. เบาหวานinsulin ได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  smiv_total: {
+    id: "smiv_total",
+    colIndex: 25,
+    colLetter: "Z",
+    label: "[Z] 26. ผู้ป่วย SMIV (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  smiv_affected: {
+    id: "smiv_affected",
+    colIndex: 26,
+    colLetter: "AA",
+    label: "[AA] 27. ผู้ป่วย SMIV ได้รับผลกระทบ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  smiv_helped: {
+    id: "smiv_helped",
+    colIndex: 27,
+    colLetter: "AB",
+    label: "[AB] 28. ผู้ป่วย SMIV ได้รับการช่วยเหลือ",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  urgent_evac: {
+    id: "urgent_evac",
+    label: "ต้องอพยพเร่งด่วน (ราย)",
+    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
     x: 898,
     y: 1010,
@@ -446,94 +941,166 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 6. Box 5: ยา / เวชภัณฑ์ / สาธารณูปโภค (Z - AF)
+  // 4. ศูนย์พักพิงและการเยียวยา (AC - AF)
+  shelter_total: {
+    id: "shelter_total",
+    colIndex: 28,
+    colLetter: "AC",
+    label: "[AC] 29. ศูนย์พักพิงที่เปิดบริการ (แห่ง)",
+    category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  shelter_people: {
+    id: "shelter_people",
+    colIndex: 29,
+    colLetter: "AD",
+    label: "[AD] 30. จำนวนผู้ใช้ศูนย์พักพิง (คน)",
+    category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  kitchen_total: {
+    id: "kitchen_total",
+    colIndex: 30,
+    colLetter: "AE",
+    label: "[AE] 31. โรงครัวสนาม จำนวน",
+    category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+  mcatt_status: {
+    id: "mcatt_status",
+    colIndex: 31,
+    colLetter: "AF",
+    label: "[AF] 32. MCATT เข้าดำเนินการเยียวยา",
+    category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
+    type: "text",
+    x: 512,
+    y: 768,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
+  },
+
+  // 6. Box 5: ยา / เวชภัณฑ์ / สาธารณูปโภค (AT - AZ)
   medicine: {
     id: "medicine",
-    colIndex: 25,
-    colLetter: "Z",
-    label: "[Z] 26. ยาและเวชภัณฑ์ (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 45,
+    colLetter: "AT",
+    label: "[AT] 46. ยาและเวชภัณฑ์ (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_peangphor",
     x: 215,
     y: 1083,
     visible: true
   },
   food_water: {
     id: "food_water",
-    colIndex: 26,
-    colLetter: "AA",
-    label: "[AA] 27. อาหาร/น้ำดื่ม (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 46,
+    colLetter: "AU",
+    label: "[AU] 47. อาหาร/น้ำดื่ม (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_peangphor",
     x: 215,
     y: 1148,
     visible: true
   },
   electricity: {
     id: "electricity",
-    colIndex: 27,
-    colLetter: "AB",
-    label: "[AB] 28. ไฟฟ้า (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 47,
+    colLetter: "AV",
+    label: "[AV] 48. ไฟฟ้า (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_pokati",
     x: 215,
     y: 1190,
     visible: true
   },
   tap_water: {
     id: "tap_water",
-    colIndex: 28,
-    colLetter: "AC",
-    label: "[AC] 29. น้ำประปา (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 48,
+    colLetter: "AW",
+    label: "[AW] 49. น้ำประปา (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_pokati",
     x: 215,
     y: 1233,
     visible: true
   },
   internet: {
     id: "internet",
-    colIndex: 29,
-    colLetter: "AD",
-    label: "[AD] 30. ระบบสื่อสาร/Internet (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 49,
+    colLetter: "AX",
+    label: "[AX] 50. ระบบสื่อสาร/Internet (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_pokati",
     x: 215,
     y: 1283,
     visible: true
   },
   generator: {
     id: "generator",
-    colIndex: 30,
-    colLetter: "AE",
-    label: "[AE] 31. เครื่องปั่นไฟ (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
-    type: "badge",
+    colIndex: 50,
+    colLetter: "AY",
+    label: "[AY] 51. เครื่องปั่นไฟ (ป้ายสถานะ)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    type: "pill",
+    exactAssetKey: "pill_prom",
     x: 218,
     y: 1324,
     visible: true
   },
   fuel: {
     id: "fuel",
-    colIndex: 31,
-    colLetter: "AF",
-    label: "[AF] 32. น้ำมันสำรอง (ป้ายสถานะ)",
-    category: "5. ยา/สาธารณูปโภค",
+    colIndex: 51,
+    colLetter: "AZ",
+    label: "[AZ] 52. น้ำมันสำรอง (ลิตร)",
+    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
     type: "badge",
     x: 218,
     y: 1363,
     visible: true
   },
 
-  // 7. Box 6: สิ่งที่ต้องการสนับสนุนจากจังหวัด (AG - AI)
+  // 7. Box 6: สิ่งที่ต้องการสนับสนุนจากจังหวัด (BA - BC)
   support_1: {
     id: "support_1",
-    colIndex: 32,
-    colLetter: "AG",
-    label: "[AG] 33. สิ่งที่ต้องการสนับสนุน 1",
-    category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    colIndex: 52,
+    colLetter: "BA",
+    label: "[BA] 53. สิ่งที่ต้องการสนับสนุน 1",
+    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
     type: "support_item",
-    defaultIconKey: "icon_support_1",
+    iconKey: "icon_support_1",
     x: 580,
     y: 1146,
     fontSize: 16,
@@ -545,12 +1112,12 @@ const DEFAULT_LAYOUT = {
   },
   support_2: {
     id: "support_2",
-    colIndex: 33,
-    colLetter: "AH",
-    label: "[AH] 34. สิ่งที่ต้องการสนับสนุน 2",
-    category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    colIndex: 53,
+    colLetter: "BB",
+    label: "[BB] 54. สิ่งที่ต้องการสนับสนุน 2",
+    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
     type: "support_item",
-    defaultIconKey: "icon_support_2",
+    iconKey: "icon_support_2",
     x: 580,
     y: 1220,
     fontSize: 16,
@@ -562,12 +1129,12 @@ const DEFAULT_LAYOUT = {
   },
   support_3: {
     id: "support_3",
-    colIndex: 34,
-    colLetter: "AI",
-    label: "[AI] 35. สิ่งที่ต้องการสนับสนุน 3",
-    category: "6. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    colIndex: 54,
+    colLetter: "BC",
+    label: "[BC] 55. สิ่งที่ต้องการสนับสนุน 3 / เพิ่มเติม",
+    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
     type: "support_item",
-    defaultIconKey: "icon_support_3",
+    iconKey: "icon_support_3",
     x: 580,
     y: 1298,
     fontSize: 16,
@@ -578,13 +1145,13 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 8. Footer: ข้อมูลท้ายรายงาน (AJ - AL)
+  // 8. Footer: สถานะโรงพยาบาล และผู้รายงาน (BD - BF)
   hosp_status: {
     id: "hosp_status",
-    colIndex: 35,
-    colLetter: "AJ",
-    label: "[AJ] 36. สถานะโรงพยาบาล (ป้ายท้าย)",
-    category: "7. ข้อมูลท้ายรายงาน (Footer)",
+    colIndex: 55,
+    colLetter: "BD",
+    label: "[BD] 56. สถานะโรงพยาบาล (ป้ายสถานะ)",
+    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
     type: "badge",
     x: 225,
     y: 1418,
@@ -592,10 +1159,10 @@ const DEFAULT_LAYOUT = {
   },
   reporter_name: {
     id: "reporter_name",
-    colIndex: 36,
-    colLetter: "AK",
-    label: "[AK] 37. ผู้รายงาน (ชื่อ)",
-    category: "7. ข้อมูลท้ายรายงาน (Footer)",
+    colIndex: 56,
+    colLetter: "BE",
+    label: "[BE] 57. ผู้รายงาน",
+    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
     type: "text",
     x: 864,
     y: 1410,
@@ -608,10 +1175,10 @@ const DEFAULT_LAYOUT = {
   },
   reporter_pos: {
     id: "reporter_pos",
-    colIndex: 37,
-    colLetter: "AL",
-    label: "[AL] 38. ตำแหน่งผู้รายงาน",
-    category: "7. ข้อมูลท้ายรายงาน (Footer)",
+    colIndex: 57,
+    colLetter: "BF",
+    label: "[BF] 58. ตำแหน่งผู้รายงาน",
+    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
     type: "text",
     x: 864,
     y: 1435,
@@ -625,7 +1192,7 @@ const DEFAULT_LAYOUT = {
   footer_time: {
     id: "footer_time",
     label: "เวลา (ท้ายรายงาน)",
-    category: "7. ข้อมูลท้ายรายงาน (Footer)",
+    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
     type: "text",
     x: 854,
     y: 1461,
@@ -651,13 +1218,16 @@ function getLayoutConfig() {
     const saved = localStorage.getItem(STORAGE_KEY_LAYOUT);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Deep merge with DEFAULT_LAYOUT
       const merged = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
       for (const [key, val] of Object.entries(parsed)) {
         if (key === "custom_texts") {
           merged.custom_texts = Array.isArray(val) ? val : [];
-        } else if (merged[key] && typeof val === "object") {
-          merged[key] = { ...merged[key], ...val };
+        } else if (val && typeof val === "object") {
+          if (merged[key]) {
+            merged[key] = { ...merged[key], ...val };
+          } else {
+            merged[key] = val;
+          }
         }
       }
       return merged;

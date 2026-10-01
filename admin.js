@@ -7,42 +7,64 @@
 const SAMPLE_RECORD = {
   date: "28/9/2026",
   time: "9:00",
-  water_level: "1",
-  villages: "2",
-  households: "3",
-  people: "4",
-  routes_cut: "0",
+  water_level: "4",
+  villages: "29",
+  households: "46",
+  people: "150",
+  routes_cut: "8",
   trend: "เพิ่มขึ้น",
-  hosp_affected: "1",
+  bedridden: "28",
+  bedridden_affected: "0",
+  bedridden_helped: "0",
+  oxygen: "0",
+  oxygen_affected: "0",
+  oxygen_helped: "0",
+  dialysis: "0",
+  dialysis_affected: "0",
+  dialysis_helped: "0",
+  chronic_med: "0",
+  chronic_med_affected: "0",
+  chronic_med_helped: "0",
+  pregnant_total: "0",
+  pregnant_affected: "0",
+  pregnant_helped: "0",
+  diabetes_total: "0",
+  diabetes_affected: "0",
+  diabetes_helped: "0",
+  smiv_total: "0",
+  smiv_affected: "0",
+  smiv_helped: "0",
+  shelter_total: "0",
+  shelter_people: "0",
+  kitchen_total: "0",
+  mcatt_status: "ปกติ",
+  hosp_affected: "ไม่ได้รับ",
   staff_total: "150",
-  staff_affected: "5",
-  staff_absent: "2",
-  beds_total: "60",
-  beds_current: "45",
-  beds_available: "15",
-  patients_affected: "3",
+  staff_affected: "0",
+  staff_helped: "0",
+  staff_absent: "0",
+  beds_total: "58",
+  beds_current: "15",
+  beds_available: "43",
+  patients_affected: "0",
   ambulance_ready: "4",
-  ems_status: "พร้อม",
-  referral_status: "พร้อม",
+  ems_status: "ปกติ",
+  referral_status: "ปกติ",
   dest_hospital: "รพ.พหลพลพยุหเสนา",
-  bedridden: "12",
-  oxygen: "4",
-  dialysis: "6",
-  chronic_med: "28",
-  urgent_evac: "0",
   medicine: "เพียงพอ",
   food_water: "เพียงพอ",
   electricity: "ปกติ",
   tap_water: "ปกติ",
   internet: "ปกติ",
-  generator: "พร้อม",
+  generator: "ปกติ",
   fuel: "200",
-  support_1: "ชุดตรวจ Leptospirosis 50 ชุด",
-  support_2: "น้ำดื่มสะอาด 100 แพ็ค",
-  support_3: "ถุงยังชีพสำหรับผู้ป่วยติดเตียง 30 ชุด",
+  support_1: "สนับสนุน/เตรียม Lepto Kit Test สำหรับเฝ้าระวังโรคเลปโตสไปโรซิส",
+  support_2: "ประสานแผนสำรองน้ำอุปโภคบริโภค กรณีเทศบาลงดจ่ายน้ำประปา",
+  support_3: "ติดตามและดูแลกลุ่มผู้ป่วยติดบ้าน/ติดเตียง 28 ราย รวมถึงแผนเข้าถึงหรืออพยพ",
   hosp_status: "ให้บริการได้ปกติ",
-  reporter_name: "นายแพทย์ชำนาญการ",
-  reporter_pos: "ผู้อำนวยการ รพ.ไทรโยค"
+  reporter_name: "โรงพยาบาลไทรโยค",
+  reporter_pos: "ศูนย์ EOC โรงพยาบาล",
+  urgent_evac: "0"
 };
 
 // Global Admin State
@@ -91,7 +113,44 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   applyZoom();
   renderAdminCanvas();
+
+  // Load live / cached sheet data to sync all columns
+  await loadSheetDataForAdmin();
 });
+
+async function loadSheetDataForAdmin() {
+  try {
+    const res = await fetch("sheet_data.json");
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows.length > 0) {
+        const headers = rows[0];
+        if (typeof syncSheetColumns === "function") {
+          syncSheetColumns(headers);
+        }
+        if (rows.length > 1) {
+          const r = rows[1];
+          headers.forEach((h, idx) => {
+            const val = r[idx] !== undefined && r[idx] !== null ? String(r[idx]).trim() : "";
+            const key = typeof getColumnKey === "function" ? getColumnKey(h, idx) : "";
+            if (key && val) {
+              SAMPLE_RECORD[key] = val;
+            }
+          });
+        }
+        const badge = document.getElementById("headerColCountBadge");
+        if (badge && typeof SHEET_COLUMNS_INFO !== "undefined") {
+          badge.textContent = `${SHEET_COLUMNS_INFO.length}`;
+        }
+        populateHeaderDropdowns();
+        initTreeList();
+        renderAdminCanvas();
+      }
+    }
+  } catch (e) {
+    console.warn("Could not load sheet_data.json in admin:", e);
+  }
+}
 
 async function initAssets() {
   templateImage = new Image();
@@ -232,6 +291,28 @@ function getElementConfig(id) {
   if (!id) return null;
   if (id.startsWith("custom_")) {
     return layoutConfig.custom_texts?.find((t) => t.id === id) || null;
+  }
+  if (!layoutConfig[id]) {
+    const colInfo = (typeof SHEET_COLUMNS_INFO !== "undefined") ? SHEET_COLUMNS_INFO.find((c) => c.key === id) : null;
+    if (colInfo) {
+      layoutConfig[id] = {
+        id: id,
+        colIndex: colInfo.index,
+        colLetter: colInfo.letter,
+        label: `[${colInfo.letter}] ${colInfo.index + 1}. ${colInfo.name}`,
+        category: colInfo.category,
+        type: "text",
+        x: 512,
+        y: 768,
+        fontSize: 20,
+        fontWeight: "bold",
+        fontFamily: "Prompt",
+        color: "#002d62",
+        align: "left",
+        visible: true,
+        sampleText: (typeof SAMPLE_RECORD !== "undefined" && SAMPLE_RECORD[id]) ? SAMPLE_RECORD[id] : colInfo.name
+      };
+    }
   }
   return layoutConfig[id] || null;
 }
@@ -422,12 +503,38 @@ function renderAdminCanvas() {
 
 function getAllRenderableElements() {
   const list = [];
-  // Standard items
+  // Standard items in layoutConfig
   for (const [key, val] of Object.entries(layoutConfig)) {
     if (key === "custom_texts") continue;
     if (val && typeof val === "object" && val.x !== undefined) {
       list.push(val);
     }
+  }
+  // Sheet columns from SHEET_COLUMNS_INFO not yet in layoutConfig
+  if (typeof SHEET_COLUMNS_INFO !== "undefined" && Array.isArray(SHEET_COLUMNS_INFO)) {
+    SHEET_COLUMNS_INFO.forEach((col) => {
+      if (!layoutConfig[col.key]) {
+        const item = {
+          id: col.key,
+          colIndex: col.index,
+          colLetter: col.letter,
+          label: `[${col.letter}] ${col.index + 1}. ${col.name}`,
+          category: col.category,
+          type: "text",
+          x: 512,
+          y: 768,
+          fontSize: 20,
+          fontWeight: "bold",
+          fontFamily: "Prompt",
+          color: "#002d62",
+          align: "left",
+          visible: false,
+          sampleText: (typeof SAMPLE_RECORD !== "undefined" && SAMPLE_RECORD[col.key]) ? SAMPLE_RECORD[col.key] : col.name
+        };
+        layoutConfig[col.key] = item;
+        list.push(item);
+      }
+    });
   }
   // Custom texts
   if (Array.isArray(layoutConfig.custom_texts)) {
@@ -637,14 +744,23 @@ function populateHeaderDropdowns() {
   const makeOptionsHtml = (placeholder) => {
     let html = `<option value="">${placeholder}</option>`;
 
-    // 1. Google Sheets Columns (38 Columns)
-    html += `<optgroup label="📊 หัวตารางข้อมูลจาก Google Sheets (38 คอลัมน์)">`;
+    // 1. Google Sheets Columns (Grouped by Category)
+    const catMap = new Map();
     if (typeof SHEET_COLUMNS_INFO !== "undefined" && Array.isArray(SHEET_COLUMNS_INFO)) {
       SHEET_COLUMNS_INFO.forEach((col) => {
-        html += `<option value="${col.key}">[${col.letter}] ${col.index + 1}. ${col.name}</option>`;
+        const cat = col.category || "ข้อมูล Google Sheets";
+        if (!catMap.has(cat)) catMap.set(cat, []);
+        catMap.get(cat).push(col);
       });
     }
-    html += `</optgroup>`;
+
+    catMap.forEach((cols, catName) => {
+      html += `<optgroup label="${catName}">`;
+      cols.forEach((col) => {
+        html += `<option value="${col.key}">[${col.letter}] ${col.index + 1}. ${col.name}</option>`;
+      });
+      html += `</optgroup>`;
+    });
 
     // 2. Extra Graphic Badges & Assets
     const extraItems = [];
@@ -1070,8 +1186,9 @@ function initTreeList() {
 
   const treeTotalCount = document.getElementById("treeTotalCount");
   if (treeTotalCount) {
+    const sheetColCount = (typeof SHEET_COLUMNS_INFO !== "undefined") ? SHEET_COLUMNS_INFO.length : 58;
     const customCount = Array.isArray(layoutConfig.custom_texts) ? layoutConfig.custom_texts.length : 0;
-    treeTotalCount.textContent = `รวม ${all.length} รายการ (38 คอลัมน์${customCount > 0 ? ` + ${customCount} ข้อความเพิ่มเอง` : ""})`;
+    treeTotalCount.textContent = `รวม ${all.length} รายการ (${sheetColCount} คอลัมน์${customCount > 0 ? ` + ${customCount} ข้อความเพิ่มเอง` : ""})`;
   }
 
   all.forEach((elem) => {
