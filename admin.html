@@ -65,6 +65,13 @@
         </div>
 
         <div class="stage-tools-right">
+          <label for="stageColumnSelect" style="font-weight:600; font-size:0.85rem; display:flex; align-items:center; gap:0.3rem; margin:0;">
+            📌 เลือกหัวข้อ:
+          </label>
+          <select id="stageColumnSelect" class="stage-select font-bold" style="max-width:240px; padding:0.3rem 0.5rem; border-radius:6px; border:1px solid #cbd5e1; font-family:'Prompt',sans-serif; font-size:0.85rem; background:#fff; color:#002d62;">
+            <option value="">-- เลือกหัวข้อจากตาราง --</option>
+          </select>
+
           <span id="canvasHoverInfo" style="font-size:0.8rem; color:#64748b; font-family:monospace;">
             พิกัด: X=0, Y=0
           </span>
@@ -94,6 +101,19 @@
 
       <!-- Tab 1: Inspector -->
       <div id="tab-inspector" class="admin-tab-content active">
+        <!-- Quick Select by Table Column Header (38 Columns) -->
+        <div class="admin-card" style="padding:0.85rem 1.25rem; background:#f8fafc; border:1.5px solid #004b87;">
+          <label for="columnHeaderSelect" style="font-size:0.85rem; font-weight:700; color:#002d62; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.4rem;">
+            📌 เลือกหัวข้อจากหัวตาราง (38 คอลัมน์):
+          </label>
+          <select id="columnHeaderSelect" class="input-control font-bold" style="font-size:0.9rem; background:#ffffff; border-color:#004b87; color:#002d62;">
+            <option value="">-- คลิกเพื่อเลือกหัวข้อที่ต้องการปรับตำแหน่ง --</option>
+          </select>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:0.35rem;">
+            💡 เลือกหัวข้อจาก Google Sheets [A]..[AL] เพื่อปรับตำแหน่งได้ทันที หรือคลิกบนรูปภาพ
+          </div>
+        </div>
+
         <div class="admin-card">
           <div class="admin-card-header">
             <div class="admin-card-title">
@@ -103,7 +123,7 @@
           </div>
 
           <div id="inspectorEmptyState" style="text-align:center; padding:2rem 1rem; color:var(--text-muted); font-size:0.9rem;">
-            👈 คลิกเลือกข้อความหรือองค์ประกอบบนภาพทางซ้าย เพื่อดูและปรับแต่งตำแหน่ง พิกัด ขนาดตัวอักษร และสี
+            👈 คลิกเลือกข้อความหรือองค์ประกอบบนภาพทางซ้าย หรือเลือกจากหัวข้อด้านบน เพื่อดูและปรับแต่งตำแหน่ง พิกัด ขนาดตัวอักษร และสี
           </div>
 
           <div id="inspectorControls" style="display:none;">
@@ -226,9 +246,18 @@
         <div class="admin-card">
           <div class="admin-card-header">
             <div class="admin-card-title">📋 รายการองค์ประกอบทั้งหมด</div>
+            <span id="treeTotalCount" style="font-size:0.75rem; font-weight:600; color:#0369a1; background:#e0f2fe; padding:0.2rem 0.5rem; border-radius:9999px;">
+              38 คอลัมน์ + องค์ประกอบ
+            </span>
           </div>
-          <div class="inspector-row">
-            <input type="text" id="searchElements" class="input-control" placeholder="🔍 ค้นหาฟิลด์หรือข้อความ...">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; gap:0.5rem;">
+            <div style="flex:1;">
+              <input type="text" id="searchElements" class="input-control" placeholder="🔍 ค้นหาฟิลด์, คอลัมน์ [A]..[AL] หรือข้อความ...">
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-shrink:0;">
+              <button id="btnExpandAll" class="btn btn-light" style="padding:0.3rem 0.5rem; font-size:0.75rem;" title="ขยายทุกกลุ่ม">📂 ขยาย</button>
+              <button id="btnCollapseAll" class="btn btn-light" style="padding:0.3rem 0.5rem; font-size:0.75rem;" title="ย่อทุกกลุ่ม">📁 ย่อ</button>
+            </div>
           </div>
           <div class="elements-list-container" id="elementsTreeList">
             <!-- Dynamically populated -->
