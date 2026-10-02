@@ -796,7 +796,7 @@ const DEFAULT_LAYOUT = {
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   pregnant_affected: {
     id: "pregnant_affected",
@@ -812,7 +812,7 @@ const DEFAULT_LAYOUT = {
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   pregnant_helped: {
     id: "pregnant_helped",
@@ -821,14 +821,14 @@ const DEFAULT_LAYOUT = {
     label: "[V] 22. หญิงตั้งครรภ์ได้รับการช่วยเหลือ",
     category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 330,
+    y: 1243,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   diabetes_total: {
     id: "diabetes_total",
@@ -885,14 +885,14 @@ const DEFAULT_LAYOUT = {
     label: "[Z] 26. ผู้ป่วย SMIV (ราย)",
     category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 184,
+    y: 1278,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   smiv_affected: {
     id: "smiv_affected",
@@ -901,14 +901,14 @@ const DEFAULT_LAYOUT = {
     label: "[AA] 27. ผู้ป่วย SMIV ได้รับผลกระทบ",
     category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 253,
+    y: 1281,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   smiv_helped: {
     id: "smiv_helped",
@@ -917,31 +917,31 @@ const DEFAULT_LAYOUT = {
     label: "[AB] 28. ผู้ป่วย SMIV ได้รับการช่วยเหลือ",
     category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 330,
+    y: 1282,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   urgent_evac: {
     id: "urgent_evac",
-    label: "ต้องอพยพเร่งด่วน (ราย)",
-    category: "🧓 3. กลุ่มเปราะบางในพื้นที่",
+    label: "ผู้ป่วยที่ต้องอพยพเร่งด่วน",
+    category: "4. กลุ่มเปราะบางในพื้นที่",
     type: "text",
-    x: 898,
-    y: 1010,
+    x: 308,
+    y: 1230,
     fontSize: 32,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#e51c24",
     align: "right",
-    visible: true
+    visible: false
   },
 
-  // 4. ศูนย์พักพิงและการเยียวยา (AC - AF)
+  // 6. ศูนย์พักพิงและการเยียวยา (AC - AF)
   shelter_total: {
     id: "shelter_total",
     colIndex: 28,
@@ -949,14 +949,14 @@ const DEFAULT_LAYOUT = {
     label: "[AC] 29. ศูนย์พักพิงที่เปิดบริการ (แห่ง)",
     category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 928,
+    y: 653,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   shelter_people: {
     id: "shelter_people",
@@ -965,14 +965,14 @@ const DEFAULT_LAYOUT = {
     label: "[AD] 30. จำนวนผู้ใช้ศูนย์พักพิง (คน)",
     category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 929,
+    y: 691,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   kitchen_total: {
     id: "kitchen_total",
@@ -981,129 +981,130 @@ const DEFAULT_LAYOUT = {
     label: "[AE] 31. โรงครัวสนาม จำนวน",
     category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 860,
+    y: 722,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true
   },
   mcatt_status: {
     id: "mcatt_status",
     colIndex: 31,
     colLetter: "AF",
     label: "[AF] 32. MCATT เข้าดำเนินการเยียวยา",
-    category: "🏕️ 4. ศูนย์พักพิงและการเยียวยา",
+    category: "🏕️️ 4. ศูนย์พักพิงและการเยียวยา",
     type: "text",
-    x: 512,
-    y: 768,
+    x: 777,
+    y: 799,
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: false
+    visible: true,
+    sampleText: "0"
   },
 
-  // 6. Box 5: ยา / เวชภัณฑ์ / สาธารณูปโภค (AT - AZ)
+  // 7. Box 5: ยา / เวชภัณฑ์ / สาธารณูปโภค (AT - AZ)
   medicine: {
     id: "medicine",
     colIndex: 45,
     colLetter: "AT",
-    label: "[AT] 46. ยาและเวชภัณฑ์ (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "ยาและเวชภัณฑ์ (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_peangphor",
-    x: 215,
-    y: 1083,
+    x: 762,
+    y: 950,
     visible: true
   },
   food_water: {
     id: "food_water",
     colIndex: 46,
     colLetter: "AU",
-    label: "[AU] 47. อาหาร/น้ำดื่ม (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "อาหาร/น้ำดื่ม (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_peangphor",
-    x: 215,
-    y: 1148,
+    x: 764,
+    y: 1000,
     visible: true
   },
   electricity: {
     id: "electricity",
     colIndex: 47,
     colLetter: "AV",
-    label: "[AV] 48. ไฟฟ้า (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "ไฟฟ้า (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_pokati",
-    x: 215,
-    y: 1190,
+    x: 814,
+    y: 1026,
     visible: true
   },
   tap_water: {
     id: "tap_water",
     colIndex: 48,
     colLetter: "AW",
-    label: "[AW] 49. น้ำประปา (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "น้ำประปา (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_pokati",
-    x: 215,
-    y: 1233,
+    x: 813,
+    y: 1059,
     visible: true
   },
   internet: {
     id: "internet",
     colIndex: 49,
     colLetter: "AX",
-    label: "[AX] 50. ระบบสื่อสาร/Internet (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "ระบบสื่อสาร/Internet (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_pokati",
-    x: 215,
-    y: 1283,
+    x: 880,
+    y: 1100,
     visible: true
   },
   generator: {
     id: "generator",
     colIndex: 50,
     colLetter: "AY",
-    label: "[AY] 51. เครื่องปั่นไฟ (ป้ายสถานะ)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
-    type: "pill",
+    label: "เครื่องปั่นไฟ (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
+    type: "badge",
     exactAssetKey: "pill_prom",
-    x: 218,
-    y: 1324,
+    x: 829,
+    y: 1131,
     visible: true
   },
   fuel: {
     id: "fuel",
     colIndex: 51,
     colLetter: "AZ",
-    label: "[AZ] 52. น้ำมันสำรอง (ลิตร)",
-    category: "💊 7. ยา เวชภัณฑ์ และสาธารณูปโภค",
+    label: "น้ำมันสำรอง (Badge)",
+    category: "5. ยา/สาธารณูปโภค",
     type: "badge",
-    x: 218,
-    y: 1363,
+    x: 819,
+    y: 1172,
     visible: true
   },
 
-  // 7. Box 6: สิ่งที่ต้องการสนับสนุนจากจังหวัด (BA - BC)
+  // 8. Box 6: สิ่งที่ต้องการสนับสนุนจากจังหวัด (BA - BC)
   support_1: {
     id: "support_1",
     colIndex: 52,
     colLetter: "BA",
-    label: "[BA] 53. สิ่งที่ต้องการสนับสนุน 1",
-    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    label: "สนับสนุนจากจังหวัด ข้อ 1",
+    category: "6. สนับสนุนจากจังหวัด",
     type: "support_item",
     iconKey: "icon_support_1",
-    x: 580,
-    y: 1146,
-    fontSize: 16,
+    x: 413,
+    y: 1195,
+    fontSize: 14,
     fontWeight: "bold",
     fontFamily: "Prompt",
     color: "#002d62",
@@ -1114,12 +1115,12 @@ const DEFAULT_LAYOUT = {
     id: "support_2",
     colIndex: 53,
     colLetter: "BB",
-    label: "[BB] 54. สิ่งที่ต้องการสนับสนุน 2",
-    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    label: "สนับสนุนจากจังหวัด ข้อ 2",
+    category: "6. สนับสนุนจากจังหวัด",
     type: "support_item",
     iconKey: "icon_support_2",
-    x: 580,
-    y: 1220,
+    x: 408,
+    y: 1238,
     fontSize: 16,
     fontWeight: "bold",
     fontFamily: "Prompt",
@@ -1131,12 +1132,12 @@ const DEFAULT_LAYOUT = {
     id: "support_3",
     colIndex: 54,
     colLetter: "BC",
-    label: "[BC] 55. สิ่งที่ต้องการสนับสนุน 3 / เพิ่มเติม",
-    category: "🤝 8. สิ่งที่ต้องการสนับสนุนจากจังหวัด",
+    label: "สนับสนุนจากจังหวัด ข้อ 3",
+    category: "6. สนับสนุนจากจังหวัด",
     type: "support_item",
     iconKey: "icon_support_3",
-    x: 580,
-    y: 1298,
+    x: 411,
+    y: 1273,
     fontSize: 16,
     fontWeight: "bold",
     fontFamily: "Prompt",
@@ -1145,49 +1146,49 @@ const DEFAULT_LAYOUT = {
     visible: true
   },
 
-  // 8. Footer: สถานะโรงพยาบาล และผู้รายงาน (BD - BF)
+  // 9. Footer: สถานะโรงพยาบาล และผู้รายงาน (BD - BF)
   hosp_status: {
     id: "hosp_status",
     colIndex: 55,
     colLetter: "BD",
-    label: "[BD] 56. สถานะโรงพยาบาล (ป้ายสถานะ)",
-    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
+    label: "สถานะโรงพยาบาล (Badge ท้าย)",
+    category: "7. ข้อมูลท้ายรายงาน (Footer)",
     type: "badge",
-    x: 225,
-    y: 1418,
+    x: 802,
+    y: 313,
     visible: true
   },
   reporter_name: {
     id: "reporter_name",
     colIndex: 56,
     colLetter: "BE",
-    label: "[BE] 57. ผู้รายงาน",
-    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
+    label: "ชื่อผู้รายงาน",
+    category: "7. ข้อมูลท้ายรายงาน (Footer)",
     type: "text",
     x: 864,
-    y: 1410,
+    y: 1419,
     fontSize: 15,
     fontWeight: "500",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: true
+    visible: false
   },
   reporter_pos: {
     id: "reporter_pos",
     colIndex: 57,
     colLetter: "BF",
-    label: "[BF] 58. ตำแหน่งผู้รายงาน",
-    category: "👤 9. ข้อมูลท้ายรายงาน (Footer)",
+    label: "ตำแหน่งผู้รายงาน",
+    category: "7. ข้อมูลท้ายรายงาน (Footer)",
     type: "text",
-    x: 864,
-    y: 1435,
+    x: 861,
+    y: 1445,
     fontSize: 13,
     fontWeight: "normal",
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: true
+    visible: false
   },
   footer_time: {
     id: "footer_time",
@@ -1201,10 +1202,24 @@ const DEFAULT_LAYOUT = {
     fontFamily: "Prompt",
     color: "#002d62",
     align: "left",
-    visible: true
+    visible: false
+  },
+  report_time_footer: {
+    id: "report_time_footer",
+    label: "เวลา (ท้ายรายงาน)",
+    category: "7. ข้อมูลท้ายรายงาน (Footer)",
+    type: "text",
+    x: 857,
+    y: 1469,
+    fontSize: 15,
+    fontWeight: "500",
+    fontFamily: "Prompt",
+    color: "#002d62",
+    align: "left",
+    visible: false
   },
 
-  // 9. Custom Texts (ข้อความอิสระที่เพิ่มเอง)
+  // Custom Texts (ข้อความอิสระที่เพิ่มเอง)
   custom_texts: []
 };
 
